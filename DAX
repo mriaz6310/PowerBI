@@ -1,0 +1,14 @@
+YTD Text Total = 
+SUMX(
+    FILTER(
+        ALL('Date'),                 // Use ALL to remove any filters on Date
+        'Date'[Date] <= MAX('Date'[Date])
+    ),
+    SUMX(
+        FILTER(
+            'Table2',
+            'Table2'[Date] <= MAX('Date'[Date])
+        ),
+        VALUE('Table2'[TextColumn])   // Convert text to numeric and sum
+    )
+)
