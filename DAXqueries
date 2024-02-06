@@ -1,1 +1,22 @@
+YTD Count = 
+VAR MaxDate = MAX('Date'[Date])
+RETURN
+COUNTROWS(
+    FILTER(
+        ALL('Date'),
+        'Date'[Date] <= MaxDate && 'Date'[Date] >= DATE(YEAR(MaxDate), 1, 1)
+    )
+)
 
+
+LastMonth Count = 
+VAR MaxDate = MAX('Date'[Date])
+VAR LastMonthStart = DATE(YEAR(MaxDate), MONTH(MaxDate) - 1, 1)
+VAR LastMonthEnd = EOMONTH(MaxDate, 0)
+RETURN
+COUNTROWS(
+    FILTER(
+        ALL('Date'),
+        'Date'[Date] >= LastMonthStart && 'Date'[Date] <= LastMonthEnd
+    )
+)
