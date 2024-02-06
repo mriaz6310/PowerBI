@@ -23,19 +23,21 @@ COUNTROWS(
 
 
 YTD Sales Count2 = 
-COUNTROWS(
+CALCULATE(
+    COUNTROWS('SalesTable2'),
     FILTER(
         ALL('Date'),
         'Date'[Date] <= MAX('Date'[Date]) && 'Date'[Date] >= DATE(YEAR(MAX('Date'[Date])), 1, 1)
     ),
-    SalesTable2[Sales] <> BLANK() // Exclude empty or invalid sales
+    NOT(ISBLANK(SalesTable2[Sales]))
 )
 
 YTD Sales Count1 = 
-COUNTROWS(
+CALCULATE(
+    COUNTROWS('SalesTable1'),
     FILTER(
         ALL('Date'),
         'Date'[Date] <= MAX('Date'[Date]) && 'Date'[Date] >= DATE(YEAR(MAX('Date'[Date])), 1, 1)
     ),
-    SalesTable1[Sales] <> BLANK() // Exclude empty or invalid sales
+    NOT(ISBLANK(SalesTable1[Sales]))
 )
