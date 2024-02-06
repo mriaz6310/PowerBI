@@ -20,3 +20,22 @@ COUNTROWS(
         'Date'[Date] >= LastMonthStart && 'Date'[Date] <= LastMonthEnd
     )
 )
+
+
+YTD Sales Count2 = 
+COUNTROWS(
+    FILTER(
+        ALL('Date'),
+        'Date'[Date] <= MAX('Date'[Date]) && 'Date'[Date] >= DATE(YEAR(MAX('Date'[Date])), 1, 1)
+    ),
+    SalesTable2[Sales] <> BLANK() // Exclude empty or invalid sales
+)
+
+YTD Sales Count1 = 
+COUNTROWS(
+    FILTER(
+        ALL('Date'),
+        'Date'[Date] <= MAX('Date'[Date]) && 'Date'[Date] >= DATE(YEAR(MAX('Date'[Date])), 1, 1)
+    ),
+    SalesTable1[Sales] <> BLANK() // Exclude empty or invalid sales
+)
