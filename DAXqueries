@@ -41,3 +41,22 @@ CALCULATE(
     ),
     NOT(ISBLANK(SalesTable1[Sales]))
 )
+
+DateTable = 
+VAR StartDate = DATE(YEAR(TODAY()) - 1, 10, 1) // Start from October of the previous year
+VAR EndDate = DATE(YEAR(TODAY()), 9, 30) // End in September of the current year
+RETURN
+ADDCOLUMNS (
+    FILTER (
+        CALENDAR (StartDate, EndDate),
+        MONTH([Date]) >= 10 || MONTH([Date]) <= 9
+    ),
+    "Year", YEAR([Date]),
+    "Month Number", MONTH([Date]),
+    "Month Name", FORMAT([Date], "MMMM"),
+    "Day", DAY([Date]),
+    "Quarter", "Q" & CEILING(MONTH([Date]) / 3, 1),
+    "Fiscal Year", IF(MONTH([Date]) >= 10, YEAR([Date]) + 1, YEAR([Date])),
+    "Fiscal Quarter", "FQ" & IF(MONTH([Date]) < 10, CEILING(MONTH([Date]) / 3, 1), CEILING((MONTH([Date]) - 9) / 3, 1) + 4),
+    "Fiscal Month", IF(MONTH([Date]) < 10, MONTH([Date]) + 3, MONTH([Date]) - 9)
+)
