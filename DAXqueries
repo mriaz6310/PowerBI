@@ -60,3 +60,23 @@ ADDCOLUMNS (
     "Fiscal Quarter", "FQ" & IF(MONTH([Date]) < 10, CEILING(MONTH([Date]) / 3, 1), CEILING((MONTH([Date]) - 9) / 3, 1) + 4),
     "Fiscal Month", IF(MONTH([Date]) < 10, MONTH([Date]) + 3, MONTH([Date]) - 9)
 )
+
+DateTable = 
+VAR StartDate = DATE(2021, 10, 1) // Start from October 2021
+VAR EndDate = DATE(2025, 10, 31) // End in October 2025
+RETURN
+ADDCOLUMNS (
+    FILTER (
+        CALENDAR (StartDate, EndDate),
+        YEAR([Date]) * 12 + MONTH([Date]) >= YEAR(StartDate) * 12 + MONTH(StartDate) &&
+        YEAR([Date]) * 12 + MONTH([Date]) <= YEAR(EndDate) * 12 + MONTH(EndDate)
+    ),
+    "Year", IF(MONTH([Date]) >= 10, YEAR([Date]) + 1, YEAR([Date])),
+    "Month Number", MONTH([Date]),
+    "Month Name", FORMAT([Date], "MMMM"),
+    "Day", DAY([Date]),
+    "Quarter", "Q" & IF(MONTH([Date]) >= 10, CEILING((MONTH([Date]) - 9) / 3, 1), CEILING((MONTH([Date]) + 3) / 3, 1)),
+    "Fiscal Year", IF(MONTH([Date]) >= 10, YEAR([Date]) + 1, YEAR([Date])),
+    "Fiscal Quarter", "FQ" & IF(MONTH([Date]) >= 10, CEILING((MONTH([Date]) - 9) / 3, 1), CEILING((MONTH([Date]) + 3) / 3, 1)),
+    "Fiscal Month", IF(MONTH([Date]) >= 10, MONTH([Date]) - 9, MONTH([Date]) + 3)
+)
