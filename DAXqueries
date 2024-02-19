@@ -79,4 +79,26 @@ ADDCOLUMNS (
     "Fiscal Year", IF(MONTH([Date]) >= 10, YEAR([Date]) + 1, YEAR([Date])),
     "Fiscal Quarter", "FQ" & IF(MONTH([Date]) >= 10, CEILING((MONTH([Date]) - 9) / 3, 1), CEILING((MONTH([Date]) + 3) / 3, 1)),
     "Fiscal Month", IF(MONTH([Date]) >= 10, MONTH([Date]) - 9, MONTH([Date]) + 3)
+
 )
+
+Ensure the fiscal months are sorted correctly to start from October.
+
+YTD Data Calls FY23 = 
+CALCULATE(
+    COUNTROWS(FY23), 
+    DATESYTD(DateTable[Date], "9/30")
+)
+
+YTD Data Calls FY24 = 
+CALCULATE(
+    COUNTROWS(FY24), 
+    DATESYTD(DateTable[Date], "9/30")
+)
+
+
+Fiscal Month Name = 
+FORMAT (EDATE (DateTable[Date], -3), "MMMM")
+
+Fiscal Month Number = 
+MOD(MONTH(DateTable[Date]) + 1, 12)
