@@ -112,3 +112,23 @@ Fiscal Month Name = SWITCH(
     7, "April", 8, "May", 9, "June",
     10, "July", 11, "August", 12, "September"
 )
+
+YTD Data Calls = 
+CALCULATE(
+    COUNTROWS(FY24),
+    FILTER(
+        ALL('DateTable'),
+        'DateTable'[Date] <= MAX('DateTable'[Date]) &&
+        'DateTable'[Date] >= DATE(YEAR(MAX('DateTable'[Date])), 10, 1)
+    )
+)
+
+YTD Data Calls = 
+CALCULATE(
+    COUNTROWS(FY24),
+    FILTER(
+        ALL('DateTable'), 
+        'DateTable'[Date] <= MAX('DateTable'[Date])
+        && 'DateTable'[Date] >= DATE(YEAR(MAX('DateTable'[Date])) - (MONTH(MAX('DateTable'[Date])) < 10), 10, 1)
+    )
+)
