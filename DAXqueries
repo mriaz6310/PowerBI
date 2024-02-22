@@ -132,3 +132,20 @@ CALCULATE(
         && 'DateTable'[Date] >= DATE(YEAR(MAX('DateTable'[Date])) - (MONTH(MAX('DateTable'[Date])) < 10), 10, 1)
     )
 )
+
+
+
+YTD RecordIndicator FY23 = 
+TOTALYTD(
+    SUM(FY23[RecordIndicator]), 
+    DateTable[Date],
+    "09-30"
+)
+
+Sequential Number = RANKX(
+    ALL('YourTableName'), 
+    'YourTableName'[FY23datacallnames], 
+    , 
+    ASC,
+    Dense
+)
