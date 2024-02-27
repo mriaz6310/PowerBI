@@ -156,3 +156,9 @@ CALCULATE(
     DISTINCTCOUNT('YourTableName'[YourNameColumn]),
     DATESYTD('DateTableName'[DateColumn])
 )
+
+Sales Items YTD = 
+CALCULATE(
+    SUM('YourSalesTable'[SalesItemIndicator]),
+    DATESYTD('DateTable'[DateColumn])
+)
