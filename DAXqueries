@@ -162,3 +162,12 @@ CALCULATE(
     SUM('YourSalesTable'[SalesItemIndicator]),
     DATESYTD('DateTable'[DateColumn])
 )
+
+Running Total = 
+SUMX(
+    FILTER(
+        YourTable,
+        YourTable[DateColumn] <= EARLIER(YourTable[DateColumn])
+    ),
+    YourTable[SalesItemIndicator]
+)
