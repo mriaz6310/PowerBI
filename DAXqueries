@@ -149,3 +149,10 @@ Sequential Number = RANKX(
     ASC,
     Dense
 )
+
+
+Names YTD Count = 
+CALCULATE(
+    DISTINCTCOUNT('YourTableName'[YourNameColumn]),
+    DATESYTD('DateTableName'[DateColumn])
+)
