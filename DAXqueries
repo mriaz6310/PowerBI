@@ -175,7 +175,7 @@ SUMX(
 
 
 
-ChatGPT
+
 A cyber data schema is the structured format that defines how cybersecurity-related data is organized and stored. In the context of databases, security operations, and threat intelligence, a data schema will determine the tables, fields, relationships, and data types that are used to store information about cybersecurity events, incidents, threats, alerts, and other relevant data.
 there is a strong focus on relationships and event timelines,it is critical to track the sequence of events during a cybersecurity incident or attack which ertains to managing relationships among the tables.
 
