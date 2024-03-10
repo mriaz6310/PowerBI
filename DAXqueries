@@ -173,12 +173,35 @@ SUMX(
 )
 
 
+ClosedDataCallsYTD_FY23 = 
+TOTALYTD(
+    SUM('TableFY23'[Count of Data Calls]), 
+    'DateTable1'[Date],
+    "06-30"
+)
 
+ClosedDataCallsYTD_FY24 = 
+TOTALYTD(
+    SUM('TableFY24'[Count of Data Calls]), 
+    'DateTable1'[Date],
+    "06-30"
+)
 
+PlannedDataCallsYTD_FY24 = 
+TOTALYTD(
+    SUM('PlannedTableFY24'[Count of Data Calls]), 
+    'DateTable1'[Date],
+    "06-30"
+)
 
-A cyber data schema is the structured format that defines how cybersecurity-related data is organized and stored. In the context of databases, security operations, and threat intelligence, a data schema will determine the tables, fields, relationships, and data types that are used to store information about cybersecurity events, incidents, threats, alerts, and other relevant data.
-there is a strong focus on relationships and event timelines,it is critical to track the sequence of events during a cybersecurity incident or attack which ertains to managing relationships among the tables.
-
-NVD; abbreviated as National Vulnerability Database. The NVD is a U.S. government repository of standards-based vulnerability management data. This data includes security-related software flaws, misconfigurations, product names, and impact metrics.
-The NVD is maintained by the National Institute of Standards and Technology (NIST), which is part of the U.S. Department of Commerce. The database is synchronized with the Common Vulnerabilities and Exposures (CVE) system, which provides identifiers for publicly known information-security vulnerabilities and exposures.
-
+ClosedDataCallsYTD_FY23 = 
+CALCULATE(
+    TOTALYTD(
+        SUM('TableFY23'[Count of Data Calls]), 
+        'DateTable1'[Date]
+    ),
+    FILTER(
+        ALL('DateTable1'),
+        'DateTable1'[FiscalYear] = "FY23"
+    )
+)
