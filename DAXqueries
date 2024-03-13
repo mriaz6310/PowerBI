@@ -215,3 +215,11 @@ CALCULATE(
         'DateTable'[DateColumn] <= TODAY()
     )
 )
+Running Total Till Today = 
+CALCULATE(
+    SUM('DataTable'[YourValueColumn]),
+    FILTER(
+        ALL('DateTable1'[YourDateColumn]),
+        'DateTable1'[YourDateColumn] <= TODAY()
+    )
+)
