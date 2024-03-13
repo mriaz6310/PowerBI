@@ -205,3 +205,13 @@ CALCULATE(
         'DateTable1'[FiscalYear] = "FY23"
     )
 )
+
+Running Total Data Calls FY24 = 
+CALCULATE(
+    COUNTROWS('DataTable'),
+    FILTER(
+        ALL('DateTable'), 
+        'DateTable'[FiscalYear] = "FY24" &&
+        'DateTable'[DateColumn] <= TODAY()
+    )
+)
