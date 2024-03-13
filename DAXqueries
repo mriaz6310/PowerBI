@@ -181,3 +181,12 @@ CALCULATE (
         'Date'[Date] <= MAX ( 'Date'[Date] )
     )
 )
+
+Incremental ID = 
+RANKX(
+    ALL('YourTableName'), 
+    'YourTableName'[YourUniqueColumn], 
+    , 
+    ASC, 
+    Dense
+)
