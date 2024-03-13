@@ -173,53 +173,11 @@ SUMX(
 )
 
 
-ClosedDataCallsYTD_FY23 = 
-TOTALYTD(
-    SUM('TableFY23'[Count of Data Calls]), 
-    'DateTable1'[Date],
-    "06-30"
-)
-
-ClosedDataCallsYTD_FY24 = 
-TOTALYTD(
-    SUM('TableFY24'[Count of Data Calls]), 
-    'DateTable1'[Date],
-    "06-30"
-)
-
-PlannedDataCallsYTD_FY24 = 
-TOTALYTD(
-    SUM('PlannedTableFY24'[Count of Data Calls]), 
-    'DateTable1'[Date],
-    "06-30"
-)
-
-ClosedDataCallsYTD_FY23 = 
-CALCULATE(
-    TOTALYTD(
-        SUM('TableFY23'[Count of Data Calls]), 
-        'DateTable1'[Date]
-    ),
-    FILTER(
-        ALL('DateTable1'),
-        'DateTable1'[FiscalYear] = "FY23"
-    )
-)
-
-Running Total Data Calls FY24 = 
-CALCULATE(
-    COUNTROWS('DataTable'),
-    FILTER(
-        ALL('DateTable'), 
-        'DateTable'[FiscalYear] = "FY24" &&
-        'DateTable'[DateColumn] <= TODAY()
-    )
-)
-Running Total Till Today = 
-CALCULATE(
-    SUM('DataTable'[YourValueColumn]),
-    FILTER(
-        ALL('DateTable1'[YourDateColumn]),
-        'DateTable1'[YourDateColumn] <= TODAY()
+Running Total of Items Sold = 
+CALCULATE (
+    SUM ( Sales[ItemsSold] ), 
+    FILTER (
+        ALLSELECTED ( 'Date'[Date] ),
+        'Date'[Date] <= MAX ( 'Date'[Date] )
     )
 )
