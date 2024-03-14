@@ -190,3 +190,12 @@ RANKX(
     ASC, 
     Dense
 )
+
+Running Total Items Sold = 
+CALCULATE(
+    COUNTROWS('Sales'), 
+    FILTER(
+        ALLSELECTED('Date'[Date]), 
+        'Date'[Date] <= MAX('Date'[Date])
+    )
+)
