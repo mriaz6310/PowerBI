@@ -199,3 +199,15 @@ CALCULATE(
         'Date'[Date] <= MAX('Date'[Date])
     )
 )
+Count of Data Call Name Running Total in Fiscal Month Name 3 =
+VAR CurrentMonthEnd = EOMONTH(TODAY(), 0)
+RETURN
+CALCULATE(
+    COUNTA('FY24DCT'[Data Call Name]),
+    FILTER(
+        ALLSELECTED('DateTable1'),
+        ISONORAFTER(
+            'DateTable1'[Date], CurrentMonthEnd, DESC
+        )
+    )
+)
