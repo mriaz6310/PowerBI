@@ -35,3 +35,14 @@ CALCULATE(
 
 Count of Data Call Name YTD 2 = 
 TOTALYTD(COUNTA('FY24DCT'[Data Call Name]), 'DateTable1'[Date])
+
+
+Count of Data Call Name YTD 2 =
+CALCULATE(
+    COUNTA('FY24DCT'[Data Call Name]),
+    DATESYTD(
+        'DateTable1'[Date],
+        "9/30"  // Fiscal year end date (month/day format for September 30th)
+    ),
+    'DateTable1'[Date] <= TODAY()  // Ensures calculation up to today's date
+)
