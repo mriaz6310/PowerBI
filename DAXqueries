@@ -359,36 +359,8 @@ CALCULATE(
     )
 )
 
-Cumulative Data Calls Revised = 
-VAR CurrentDate = MAX(DateTable1[Date])
-VAR StartOfFiscalYear = 
-    IF(
-        MONTH(CurrentDate) >= 10,
-        DATE(YEAR(CurrentDate), 10, 1),
-        DATE(YEAR(CurrentDate) - 1, 10, 1)
-    )
-RETURN
+Data Calls Closed Per Month = 
 CALCULATE(
-    COUNT(FY24DCT[datacallduedate]),
-    FILTER(
-        ALLSELECTED(DateTable1),
-        DateTable1[Date] >= StartOfFiscalYear && DateTable1[Date] <= CurrentDate
-    )
-)
-
-Cumulative Data Calls Fiscal Year = 
-VAR CurrentDate = MAX(DateTable1[Date])
-VAR FiscalYearStart = 
-    IF(
-        MONTH(CurrentDate) < 10,
-        DATE(YEAR(CurrentDate) - 1, 10, 1),
-        DATE(YEAR(CurrentDate), 10, 1)
-    )
-RETURN
-CALCULATE(
-    COUNT(FY24DCT[datacallduedate]),
-    FILTER(
-        ALLSELECTED(DateTable1),
-        DateTable1[Date] >= FiscalYearStart && DateTable1[Date] <= CurrentDate
-    )
+    COUNTROWS(FY24DCT),
+    ALLEXCEPT(DateTable1, DateTable1[Year], DateTable1[Month])
 )
