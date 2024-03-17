@@ -346,3 +346,15 @@ CALCULATE(
         )
     )
 )
+
+Cumulative Data Calls = 
+VAR CurrentMonthEnd = EOMONTH(MAX(DateTable1[Date]), 0)
+VAR FiscalYearStart = DATE(YEAR(EOMONTH(CurrentMonthEnd, -9)), 10, 1) // Adjusts to October of the current fiscal year
+RETURN
+CALCULATE(
+    COUNT(FY24DCT[datacallduedate]), 
+    FILTER(
+        ALLSELECTED(DateTable1),
+        DateTable1[Date] <= CurrentMonthEnd && DateTable1[Date] >= FiscalYearStart
+    )
+)
