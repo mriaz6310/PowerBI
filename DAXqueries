@@ -259,3 +259,16 @@ RETURN
             'DateTable'[Date] <= MAX('DateTable'[Date])
         )
     )
+
+
+Cumulative Closed Calls = 
+VAR CurrentDate = TODAY()
+VAR FiscalYearStart = DATE(YEAR(CurrentDate) - IF(MONTH(CurrentDate) < 10, 1, 0), 10, 1)
+RETURN
+    CALCULATE(
+        COUNTROWS('FY24DCT'), 
+        FILTER(
+            ALL('DateTable'),
+            'DateTable'[Date] >= FiscalYearStart && 'DateTable'[Date] <= CurrentDate
+        )
+    )
