@@ -303,3 +303,24 @@ CALCULATE(
         )
     )
 )
+
+Count of Data Call Name Running Total in Fiscal Month Name Till Current Month = 
+CALCULATE(
+    COUNTA('FY24DCT'[Data Call Name]),
+    FILTER(
+        CALCULATETABLE(
+            SUMMARIZE(
+                'DateTable1',
+                'DateTable1'[Fiscal Month],
+                'DateTable1'[Fiscal Month Name],
+                'DateTable1'[DateColumn]  // Assuming 'DateColumn' represents the actual date
+            ),
+            ALLSELECTED('DateTable1'),
+            'DateTable1'[DateColumn] <= EOMONTH(TODAY(), 0)  // Adjusted to include dates up to the end of the current month
+        ),
+        ISONORAFTER(
+            'DateTable1'[Fiscal Month], MAX('DateTable1'[Fiscal Month]), DESC,
+            'DateTable1'[Fiscal Month Name], MAX('DateTable1'[Fiscal Month Name]), DESC
+        )
+    )
+)
