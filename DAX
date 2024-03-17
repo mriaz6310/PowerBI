@@ -32,3 +32,32 @@ CALCULATE(
 		)
 	)
 )
+
+
+Running Total IDs = 
+CALCULATE(
+    COUNT(SalesTable[ID]), 
+    FILTER(
+        ALLSELECTED(DateTable),
+        DateTable[Date] <= MAX(DateTable[Date])
+    )
+)
+
+Fiscal Month = 
+MONTH(
+    DATEADD(DateTable[Date], -3, MONTH)
+)
+
+Fiscal Year = 
+YEAR(
+    DATEADD(DateTable[Date], -3, MONTH)
+)
+
+Running Total = 
+CALCULATE(
+    SUM(YourTableName[TotalIDs]),
+    FILTER(
+        ALLSELECTED(YourTableName[DateClosed]),
+        ISONORAFTER(YourTableName[DateClosed], MAX(YourTableName[DateClosed]), DESC)
+    )
+)
