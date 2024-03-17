@@ -384,3 +384,21 @@ CALCULATE(
         DateTable1[Date] >= FiscalYearStart && DateTable1[Date] <= TodayDate
     )
 )
+
+Monthly Data Calls Closed = 
+VAR TodayDate = TODAY()
+VAR FiscalYearStart =
+    IF(
+        MONTH(TodayDate) < 10,
+        DATE(YEAR(TodayDate) - 1, 10, 1),
+        DATE(YEAR(TodayDate), 10, 1)
+    )
+RETURN
+CALCULATE(
+    COUNTROWS(FY24DCT),
+    FILTER(
+        ALL(DateTable1),
+        DateTable1[Date] >= FiscalYearStart && DateTable1[Date] <= EOMONTH(TodayDate, 0)
+    ),
+    DateTable1[Date]
+)
