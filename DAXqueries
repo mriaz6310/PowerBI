@@ -364,3 +364,23 @@ CALCULATE(
     COUNTROWS(FY24DCT),
     ALLEXCEPT(DateTable1, DateTable1[Year], DateTable1[Month])
 )
+
+
+
+
+Data Calls Closed From October To Today = 
+VAR TodayDate = TODAY()
+VAR FiscalYearStart = 
+    IF(
+        MONTH(TodayDate) < 10,
+        DATE(YEAR(TodayDate) - 1, 10, 1),
+        DATE(YEAR(TodayDate), 10, 1)
+    )
+RETURN
+CALCULATE(
+    COUNTROWS(FY24DCT),
+    FILTER(
+        ALL(DateTable1),
+        DateTable1[Date] >= FiscalYearStart && DateTable1[Date] <= TodayDate
+    )
+)
