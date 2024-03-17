@@ -61,3 +61,16 @@ CALCULATE(
         ISONORAFTER(YourTableName[DateClosed], MAX(YourTableName[DateClosed]), DESC)
     )
 )
+
+Running Total IDs up to May FY24 = 
+CALCULATE(
+    COUNT(SalesTable[ID]), 
+    FILTER(
+        ALLSELECTED(DateTable),
+        DateTable[Date] <= MAX(DateTable[Date]) &&
+        (
+            YEAR(DateTable[Date]) < 2024 ||
+            (YEAR(DateTable[Date]) = 2024 && MONTH(DateTable[Date]) <= 5)
+        )
+    )
+)
