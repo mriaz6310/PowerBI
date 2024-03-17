@@ -243,3 +243,19 @@ RETURN
             'DateTable'[Date] >= FiscalYearStart && 'DateTable'[Date] <= TODAY()
         )
     )
+
+
+Running Total Closed Calls FY = 
+VAR FiscalYearStart = DATE(YEAR(TODAY()) - IF(MONTH(TODAY()) < 10, 1, 0), 10, 1)
+RETURN
+    CALCULATE(
+        COUNTROWS('FY24DCT'),
+        FILTER(
+            ALL('DateTable'),
+            'DateTable'[Date] <= TODAY() && 'DateTable'[Date] >= FiscalYearStart
+        ),
+        FILTER(
+            ALL('DateTable'),
+            'DateTable'[Date] <= MAX('DateTable'[Date])
+        )
+    )
