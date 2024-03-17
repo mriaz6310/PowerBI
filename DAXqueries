@@ -272,3 +272,12 @@ RETURN
             'DateTable'[Date] >= FiscalYearStart && 'DateTable'[Date] <= CurrentDate
         )
     )
+
+Running Total Closed Calls = 
+CALCULATE(
+    [Total Closed Data Calls],
+    FILTER(
+        ALLSELECTED('Date Table1'),
+        'Date Table1'[Date] <= MAX('Date Table1'[Date])
+    )
+)
