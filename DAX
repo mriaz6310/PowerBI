@@ -33,44 +33,5 @@ CALCULATE(
 	)
 )
 
-
-Running Total IDs = 
-CALCULATE(
-    COUNT(SalesTable[ID]), 
-    FILTER(
-        ALLSELECTED(DateTable),
-        DateTable[Date] <= MAX(DateTable[Date])
-    )
-)
-
-Fiscal Month = 
-MONTH(
-    DATEADD(DateTable[Date], -3, MONTH)
-)
-
-Fiscal Year = 
-YEAR(
-    DATEADD(DateTable[Date], -3, MONTH)
-)
-
-Running Total = 
-CALCULATE(
-    SUM(YourTableName[TotalIDs]),
-    FILTER(
-        ALLSELECTED(YourTableName[DateClosed]),
-        ISONORAFTER(YourTableName[DateClosed], MAX(YourTableName[DateClosed]), DESC)
-    )
-)
-
-Running Total IDs up to May FY24 = 
-CALCULATE(
-    COUNT(SalesTable[ID]), 
-    FILTER(
-        ALLSELECTED(DateTable),
-        DateTable[Date] <= MAX(DateTable[Date]) &&
-        (
-            YEAR(DateTable[Date]) < 2024 ||
-            (YEAR(DateTable[Date]) = 2024 && MONTH(DateTable[Date]) <= 5)
-        )
-    )
-)
+Count of Data Call Name YTD 2 = 
+TOTALYTD(COUNTA('FY24DCT'[Data Call Name]), 'DateTable1'[Date])
