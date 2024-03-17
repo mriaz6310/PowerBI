@@ -324,3 +324,25 @@ CALCULATE(
         )
     )
 )
+
+Count of Data Call Name Running Total From Last October to Today = 
+CALCULATE(
+    COUNTA('FY24DCT'[Data Call Name]),
+    FILTER(
+        CALCULATETABLE(
+            SUMMARIZE(
+                'DateTable1',
+                'DateTable1'[Fiscal Month],
+                'DateTable1'[Fiscal Month Name],
+                'DateTable1'[DateColumn]  // Assuming 'DateColumn' represents the actual date
+            ),
+            ALLSELECTED('DateTable1'),
+            'DateTable1'[DateColumn] <= TODAY(),  // Ensures data is considered up to today
+            'DateTable1'[DateColumn] >= DATE(YEAR(TODAY()) - 1, 10, 1)  // Sets the start date to October 1st of the previous year
+        ),
+        ISONORAFTER(
+            'DateTable1'[Fiscal Month], MAX('DateTable1'[Fiscal Month]), DESC,
+            'DateTable1'[Fiscal Month Name], MAX('DateTable1'[Fiscal Month Name]), DESC
+        )
+    )
+)
