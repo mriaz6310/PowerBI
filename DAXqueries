@@ -222,3 +222,13 @@ CALCULATE(
     ),
     USERELATIONSHIP(DateTable[Date], DataTable[DateColumn])
 )
+Running Total Data Calls = 
+CALCULATE(
+    SUM(DataTable[Total Data Calls]),
+    FILTER(
+        ALL('Date'[Date]),
+        'Date'[Date] <= MAX('Date'[Date]) && 
+        'Date'[Fiscal Month Name] = EARLIER('Date'[Fiscal Month Name])
+    ),
+    USERELATIONSHIP(DateTable[Date], DataTable[DateColumn])
+)
