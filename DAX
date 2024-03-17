@@ -12,3 +12,23 @@ SUMX(
         VALUE('Table2'[TextColumn])   // Convert text to numeric and sum
     )
 )
+
+
+Count of Data Call Name running total in Fiscal Month Name 3 = 
+CALCULATE(
+	COUNTA('FY24DCT'[Data Call Name]),
+	FILTER(
+		CALCULATETABLE(
+			SUMMARIZE(
+				'DateTable1',
+				'DateTable1'[Fiscal Month],
+				'DateTable1'[Fiscal Month Name]
+			),
+			ALLSELECTED('DateTable1')
+		),
+		ISONORAFTER(
+			'DateTable1'[Fiscal Month], MAX('DateTable1'[Fiscal Month]), DESC,
+			'DateTable1'[Fiscal Month Name], MAX('DateTable1'[Fiscal Month Name]), DESC
+		)
+	)
+)
