@@ -222,13 +222,12 @@ CALCULATE(
     ),
     USERELATIONSHIP(DateTable[Date], DataTable[DateColumn])
 )
-Running Total Data Calls = 
+
+Running Total Closed Calls = 
 CALCULATE(
-    SUM(DataTable[Total Data Calls]),
+    COUNTROWS('FY24DCT'), 
     FILTER(
-        ALL('Date'[Date]),
-        'Date'[Date] <= MAX('Date'[Date]) && 
-        'Date'[Fiscal Month Name] = EARLIER('Date'[Fiscal Month Name])
-    ),
-    USERELATIONSHIP(DateTable[Date], DataTable[DateColumn])
+        ALLSELECTED('DateTable'[Date]),
+        'DateTable'[Date] <= TODAY() && 'DateTable'[Date] >= MIN('FY24DCT'[data call close date])
+    )
 )
