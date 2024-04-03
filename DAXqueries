@@ -429,6 +429,50 @@ CALCULATE(
 <data_call_number>#DCOI-23-03</data_call_number>
 </result>
 
+(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+    var oJSON = {};
+    var results = [];
+    
+    try {
+        var result1 = {};
+        result1.sys_id = "1165b7641b158610f199ea0de54bcbca";
+        result1.close_date = "5/2/2023";
+        result1.sys_updated_by = "muhammad.riaz@hq.doe.gov";
+        result1.data_call_name = "Migrating to Post-Quantum Cryptography";
+        result1.sys_created_on = "2024-03-29 14:55:17";
+        result1.sys_mod_count = 0;
+        result1.sys_updated_on = "2024-03-29 14:55:17";
+        result1.sys_tags = "";
+        result1.sys_created_by = "muhammad.riaz@hq.doe.gov";
+        result1.data_call_number = "#CS-23-03";
+        
+        var result2 = {};
+        result2.sys_id = "1165b7641b158610f199ea0de54bcbd7";
+        result2.close_date = "5/10/2023";
+        result2.sys_updated_by = "muhammad.riaz@hq.doe.gov";
+        result2.data_call_name = "Data Center Optimization Initiative (DCOI)";
+        result2.sys_created_on = "2024-03-29 14:55:17";
+        result2.sys_mod_count = 0;
+        result2.sys_updated_on = "2024-03-29 14:55:17";
+        result2.sys_tags = "";
+        result2.sys_created_by = "muhammad.riaz@hq.doe.gov";
+        result2.data_call_number = "#DCOI-23-03";
+        
+        results.push(result1);
+        results.push(result2);
+        
+        oJSON.status = 200;
+    } catch(ex) {
+        oJSON.error = ex.toString();
+        oJSON.status = 400;
+    } finally {
+        response.setStatus(oJSON.status);
+        oJSON.results = results;
+        response.setBody(oJSON);
+    }
+})(request, response);
+
+
 
 
 
