@@ -46,3 +46,33 @@ CALCULATE(
     ),
     'DateTable1'[Date] <= TODAY()  // Ensures calculation up to today's date
 )
+
+(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+	var oJSON = {};
+	var rows = [];
+	var na = [];
+	
+	
+	try {		
+		var row = {};
+		var name = {};
+        name.column_2 = "col 4 data";
+		row.column_1 = "col 1 data";
+		row.column_2 = "col 2 data";
+		row.column_3 = "col 3 data";
+		
+		rows.push(row);	
+		na.push(name);
+		oJSON.status = 200;
+		
+	} catch(ex) {
+		oJSON.error = ex.toString();
+		oJSON.status = 400;
+		
+	} finally {
+		response.setStatus(oJSON.status);
+		oJSON.rows = rows;
+		response.setBody(oJSON);
+	}
+
+})(request, response);
