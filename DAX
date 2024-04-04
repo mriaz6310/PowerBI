@@ -76,3 +76,47 @@ CALCULATE(
 	}
 
 })(request, response);
+
+
+
+(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+
+    var oJSON = {};
+	var mfaStatuses = [];
+	var mfa = new GlideRecord("x_g_usd2_ssn_priva_fisma_mfa");
+	try {
+		mfa.addQuery("approved", "Yes");
+		mfa.addQuery("nothing_to_report", "False");
+		mfa.addQuery("save_as_draft", "False");
+
+		mfa.query();
+		while (mfa.next()) {	
+			var uid = mfa.uid.toString();
+			if(uid == "FISMA-23-06" || uid == "FISMA-23-05") {
+				var data = {};
+				data.uid = uid;
+				data.departmentalElement = mfa.departmental_element.getDisplayValue().toString();
+				data.departmentalComponent = mfa.departmental_component.getDisplayValue().toString();
+				
+				data.mfaCompliant = mfa.question_6 ? mfa.question_6.toString() : "No data";
+				data.ditCompliant = mfa.question_9 ? mfa.question_9.toString() : "No data";
+				
+				var hasSensitiveData = mfa.question_7 && mfa.question_7.toString() == "Yes";
+				var darNotImplemented = mfa.question_8 && mfa.question_8.toString() == "No";
+				if(hasSensitiveData && darNotImplemented) data.darCompliant = "No";
+				else data.darCompliant = "Yes";
+				
+				mfaStatuses.push(data);
+			}			
+		}
+		oJSON.status = 200;
+	} catch(ex) {
+		oJSON.error = ex.toString();
+		oJSON.status = 400;
+	} finally {
+		response.setStatus(oJSON.status);
+		oJSON.result = mfaStatuses;
+		response.setBody(oJSON);
+	}
+
+})(request, response);
