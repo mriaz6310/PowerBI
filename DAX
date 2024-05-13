@@ -120,3 +120,56 @@ CALCULATE(
 	}
 
 })(request, response);
+
+
+import psycopg2
+import pandas as pd
+from pandas_profiling import ProfileReport
+
+# Connect to Redshift
+conn = psycopg2.connect(
+    dbname='your_dbname',
+    user='your_username',
+    password='your_password',
+    host='your_redshift_host',
+    port='your_redshift_port'
+)
+
+# Retrieve a sample of data from Redshift
+query = "SELECT * FROM your_table LIMIT 100"
+redshift_data = pd.read_sql(query, conn)
+
+# Close the connection
+conn.close()
+
+# Perform data profiling
+redshift_profile = ProfileReport(redshift_data, title='Redshift Data Profiling')
+
+# Display the profiling results
+redshift_profile.to_file("redshift_data_profile.html")
+
+
+
+import pandas as pd
+import boto3
+from io import StringIO
+from pandas_profiling import ProfileReport
+
+# Connect to S3
+s3 = boto3.client('s3',
+                  aws_access_key_id='your_access_key_id',
+                  aws_secret_access_key='your_secret_access_key')
+
+# Specify the bucket and object key of your S3 data
+bucket_name = 'your_bucket_name'
+object_key = 'your_object_key'
+
+# Retrieve a sample of data from S3
+s3_object = s3.get_object(Bucket=bucket_name, Key=object_key)
+s3_data = pd.read_csv(s3_object['Body'], nrows=100)
+
+# Perform data profiling
+s3_profile = ProfileReport(s3_data, title='S3 Data Profiling')
+
+# Display the profiling results
+s3_profile.to_file("s3_data_profile.html")
