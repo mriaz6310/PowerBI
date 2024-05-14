@@ -173,3 +173,54 @@ s3_profile = ProfileReport(s3_data, title='S3 Data Profiling')
 
 # Display the profiling results
 s3_profile.to_file("s3_data_profile.html")
+
+
+
+
+
+
+
+
+import pandas as pd
+import json
+import pandas_profiling
+from sqlalchemy import create_engine
+
+# Define your Redshift connection parameters
+redshift_host = 'your-redshift-host'
+redshift_db = 'your-redshift-db'
+redshift_user = 'your-redshift-username'
+redshift_password = 'your-redshift-password'
+redshift_port = 'your-redshift-port'
+
+# Create the connection string for SQLAlchemy
+connection_string = f'postgresql://{redshift_user}:{redshift_password}@{redshift_host}:{redshift_port}/{redshift_db}'
+
+# Create SQLAlchemy engine
+engine = create_engine(connection_string)
+
+# Define your SQL query to fetch all JSON data columns from the Redshift table
+query = "SELECT * FROM your_table;"
+
+# Load data into a Pandas DataFrame using SQLAlchemy
+with engine.connect() as conn:
+    df = pd.read_sql_query(query, conn)
+
+# Now, let's explore the DataFrame and the JSON data
+
+# Identify columns containing JSON data
+json_columns = [col for col in df.columns if df[col].apply(lambda x: isinstance(x, (dict, list))).any()]
+
+# Convert JSON strings to Python dictionaries for each JSON column
+for col in json_columns:
+    df[col] = df[col].apply(json.loads)
+
+# Generate data profile using pandas-profiling
+profile = pandas_profiling.ProfileReport(df)
+
+# Save the profile report to an HTML file
+profile.to_file("data_profile_report.html")
+
+# Optionally, you can also display the profile report in the notebook
+# profile.to_widgets()
+
