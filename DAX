@@ -37,6 +37,58 @@ CALCULATE(
 
 
 
+import pandas as pd
+from ydata_profiling import ProfileReport
+import json
+
+# Assuming 'data' contains the fetched JSON data with super columns
+
+# Convert tuples to dictionaries if necessary
+flattened_data = []
+for item in data:
+    # Extracting timestamp and dictionary from the tuple
+    timestamp = item[0]
+    dictionary_str = item[1]
+    
+    # Handling the case where the third element may be present
+    if len(item) >= 3:
+        third_element = item[2]
+    else:
+        third_element = None
+    
+    # Convert the dictionary string to a dictionary
+    try:
+        dictionary = json.loads(dictionary_str)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON string: {e}")
+        continue
+    
+    # Flatten the dictionary and add timestamp
+    flattened_item = {"timestamp": timestamp}
+    for key, value in dictionary.items():
+        flattened_item[key] = value
+    
+    # Add the third element if present
+    flattened_item["third_element"] = third_element
+    
+    # Append to flattened_data
+    flattened_data.append(flattened_item)
+
+# Create a DataFrame from the flattened data
+df = pd.DataFrame(flattened_data)
+
+# Generate a ProfileReport
+profile = ProfileReport(df, title="Test")
+
+# Display the ProfileReport in the notebook
+profile.to_notebook_iframe()
+
+# Save the ProfileReport as an HTML file
+profile.to_file("output.html")
+
+
+
+
 
 import pandas as pd
 import json
