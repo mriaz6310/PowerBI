@@ -288,3 +288,38 @@ profile.to_file("data_profile_report.html")
 # Optionally, you can also display the profile report in the notebook
 # profile.to_widgets()
 
+
+
+
+
+
+import pandas as pd
+from pandas_profiling import ProfileReport
+import json
+
+# Assuming 'data' contains the fetched JSON data with super columns
+
+# Flatten the JSON structure
+flattened_data = []
+for item in data:
+    flattened_item = {}
+    for key, value in item.items():
+        if isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                flattened_item[f"{key}_{sub_key}"] = sub_value
+        else:
+            flattened_item[key] = value
+    flattened_data.append(flattened_item)
+
+# Create a DataFrame from the flattened data
+df = pd.DataFrame(flattened_data)
+
+# Generate a ProfileReport
+profile = ProfileReport(df, title="Test")
+
+# Display the ProfileReport in the notebook
+profile.to_notebook_iframe()
+
+# Save the ProfileReport as an HTML file
+profile.to_file("output.html")
+
