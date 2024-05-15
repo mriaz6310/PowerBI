@@ -294,22 +294,30 @@ profile.to_file("data_profile_report.html")
 
 
 import pandas as pd
-from pandas_profiling import ProfileReport
+from ydata_profiling import ProfileReport
 import json
 
 # Assuming 'data' contains the fetched JSON data with super columns
 
-# Flatten the JSON structure
+# Convert tuples to dictionaries if necessary
 flattened_data = []
 for item in data:
-    flattened_item = {}
-    for key, value in item.items():
-        if isinstance(value, dict):
-            for sub_key, sub_value in value.items():
-                flattened_item[f"{key}_{sub_key}"] = sub_value
-        else:
-            flattened_item[key] = value
-    flattened_data.append(flattened_item)
+    if isinstance(item, dict):
+        flattened_item = {}
+        for key, value in item.items():
+            if isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    flattened_item[f"{key}_{sub_key}"] = sub_value
+            else:
+                flattened_item[key] = value
+        flattened_data.append(flattened_item)
+    elif isinstance(item, tuple):
+        try:
+            flattened_data.append(dict(item))
+        except ValueError as e:
+            print(f"Error converting tuple to dictionary: {e}")
+    else:
+        print("Unexpected data format. Cannot flatten.")
 
 # Create a DataFrame from the flattened data
 df = pd.DataFrame(flattened_data)
@@ -322,4 +330,3 @@ profile.to_notebook_iframe()
 
 # Save the ProfileReport as an HTML file
 profile.to_file("output.html")
-
