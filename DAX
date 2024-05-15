@@ -33,6 +33,70 @@ CALCULATE(
 	)
 )
 
+
+
+
+
+
+import pandas as pd
+import json
+import pandas_profiling
+import boto3
+from redshift_connector import connect
+
+# Define your AWS region
+aws_region = 'your-aws-region'
+
+# Create a Secrets Manager client
+secrets_manager = boto3.client('secretsmanager', region_name=aws_region)
+
+# Retrieve Redshift credentials from Secrets Manager
+secret_name = 'your-redshift-secret-name'
+response = secrets_manager.get_secret_value(SecretId=secret_name)
+secret = json.loads(response['SecretString'])
+
+# Extract Redshift connection parameters
+redshift_host = secret['host']
+redshift_db = secret['dbname']
+redshift_user = secret['username']
+redshift_password = secret['password']
+redshift_port = secret['port']
+
+# Construct the connection string
+conn_str = f"redshift+psycopg2://{redshift_user}:{redshift_password}@{redshift_host}:{redshift_port}/{redshift_db}"
+
+# Establish connection to Redshift
+conn = connect(dsn=conn_str)
+
+# Define your SQL query to fetch JSON data from the Redshift table
+query = "SELECT * FROM your_table;"
+
+# Load data into a Pandas DataFrame using the connection
+df = pd.read_sql(query, conn)
+
+# Now, let's explore the DataFrame and the JSON data
+
+# Convert JSON strings to Python dictionaries for all JSON columns
+for col in df.columns:
+    if df[col].dtype == 'object':  # Assuming JSON columns have object data type
+        df[col] = df[col].apply(json.loads)
+
+# Generate data profile using pandas-profiling
+profile = pandas_profiling.ProfileReport(df)
+
+# Save the profile report to an HTML file
+profile.to_file("data_profile_report.html")
+
+# Optionally, you can also display the profile report in the notebook
+# profile.to_widgets()
+
+# Close the connection
+conn.close()
+
+
+
+
+
 Count of Data Call Name YTD 2 = 
 TOTALYTD(COUNTA('FY24DCT'[Data Call Name]), 'DateTable1'[Date])
 
