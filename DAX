@@ -354,22 +354,33 @@ import json
 # Convert tuples to dictionaries if necessary
 flattened_data = []
 for item in data:
-    if isinstance(item, dict):
-        flattened_item = {}
-        for key, value in item.items():
-            if isinstance(value, dict):
-                for sub_key, sub_value in value.items():
-                    flattened_item[f"{key}_{sub_key}"] = sub_value
-            else:
-                flattened_item[key] = value
-        flattened_data.append(flattened_item)
-    elif isinstance(item, tuple):
-        try:
-            flattened_data.append(dict(item))
-        except ValueError as e:
-            print(f"Error converting tuple to dictionary: {e}")
+    # Extracting timestamp and dictionary from the tuple
+    timestamp = item[0]
+    dictionary_str = item[1]
+    
+    # Handling the case where the third element may be present
+    if len(item) >= 3:
+        third_element = item[2]
     else:
-        print("Unexpected data format. Cannot flatten.")
+        third_element = None
+    
+    # Convert the dictionary string to a dictionary
+    try:
+        dictionary = json.loads(dictionary_str)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON string: {e}")
+        continue
+    
+    # Flatten the dictionary and add timestamp
+    flattened_item = {"timestamp": timestamp}
+    for key, value in dictionary.items():
+        flattened_item[key] = value
+    
+    # Add the third element if present
+    flattened_item["third_element"] = third_element
+    
+    # Append to flattened_data
+    flattened_data.append(flattened_item)
 
 # Create a DataFrame from the flattened data
 df = pd.DataFrame(flattened_data)
