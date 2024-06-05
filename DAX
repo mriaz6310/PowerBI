@@ -393,3 +393,140 @@ profile.to_notebook_iframe()
 
 # Save the ProfileReport as an HTML file
 profile.to_file("output.html")
+
+
+
+Data quality checks in SQL can help ensure the integrity, accuracy, and consistency of data. Here are some common checks you can perform on two tables. Let's assume we have two tables: `TableA` and `TableB`.
+
+### 1. Row Count Check
+Ensure both tables have the expected number of rows.
+```sql
+-- Row count for TableA
+SELECT COUNT(*) AS RowCount FROM TableA;
+
+-- Row count for TableB
+SELECT COUNT(*) AS RowCount FROM TableB;
+```
+
+### 2. Null Value Check
+Check for null values in important columns.
+```sql
+-- Null check for important columns in TableA
+SELECT COUNT(*) AS NullCount
+FROM TableA
+WHERE ImportantColumn IS NULL;
+
+-- Null check for important columns in TableB
+SELECT COUNT(*) AS NullCount
+FROM TableB
+WHERE ImportantColumn IS NULL;
+```
+
+### 3. Uniqueness Check
+Ensure certain columns have unique values.
+```sql
+-- Uniqueness check for a column in TableA
+SELECT ImportantColumn, COUNT(*)
+FROM TableA
+GROUP BY ImportantColumn
+HAVING COUNT(*) > 1;
+
+-- Uniqueness check for a column in TableB
+SELECT ImportantColumn, COUNT(*)
+FROM TableB
+GROUP BY ImportantColumn
+HAVING COUNT(*) > 1;
+```
+
+### 4. Referential Integrity Check
+Ensure that foreign key relationships are maintained.
+```sql
+-- Check foreign key integrity from TableA to TableB
+SELECT a.ForeignKeyColumn
+FROM TableA a
+LEFT JOIN TableB b ON a.ForeignKeyColumn = b.PrimaryKeyColumn
+WHERE b.PrimaryKeyColumn IS NULL;
+```
+
+### 5. Data Type Check
+Ensure columns have the expected data types.
+```sql
+-- Data type check (usually done through schema inspection, but here's a SQL way)
+SELECT COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'TableA';
+
+SELECT COLUMN_NAME, DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'TableB';
+```
+
+### 6. Range Check
+Ensure numeric columns fall within expected ranges.
+```sql
+-- Range check for a numeric column in TableA
+SELECT COUNT(*)
+FROM TableA
+WHERE NumericColumn < 0 OR NumericColumn > 100;
+
+-- Range check for a numeric column in TableB
+SELECT COUNT(*)
+FROM TableB
+WHERE NumericColumn < 0 OR NumericColumn > 100;
+```
+
+### 7. Date Consistency Check
+Ensure dates are within reasonable bounds and follow expected chronological order.
+```sql
+-- Date consistency check for TableA
+SELECT COUNT(*)
+FROM TableA
+WHERE DateColumn < '2000-01-01' OR DateColumn > GETDATE();
+
+-- Date consistency check for TableB
+SELECT COUNT(*)
+FROM TableB
+WHERE DateColumn < '2000-01-01' OR DateColumn > GETDATE();
+```
+
+### 8. Duplicate Check
+Identify potential duplicate records based on certain columns.
+```sql
+-- Duplicate check for TableA
+SELECT Column1, Column2, COUNT(*)
+FROM TableA
+GROUP BY Column1, Column2
+HAVING COUNT(*) > 1;
+
+-- Duplicate check for TableB
+SELECT Column1, Column2, COUNT(*)
+FROM TableB
+GROUP BY Column1, Column2
+HAVING COUNT(*) > 1;
+```
+
+### 9. Consistency Check Between Tables
+Ensure that related data between the two tables is consistent.
+```sql
+-- Consistency check between TableA and TableB
+SELECT a.Column1, b.Column2
+FROM TableA a
+JOIN TableB b ON a.ForeignKeyColumn = b.PrimaryKeyColumn
+WHERE a.SomeColumn <> b.SomeColumn;
+```
+
+### 10. Value Distribution Check
+Check the distribution of values in key columns to identify anomalies.
+```sql
+-- Value distribution check for a column in TableA
+SELECT ImportantColumn, COUNT(*)
+FROM TableA
+GROUP BY ImportantColumn;
+
+-- Value distribution check for a column in TableB
+SELECT ImportantColumn, COUNT(*)
+FROM TableB
+GROUP BY ImportantColumn;
+```
+
+By running these checks regularly, you can maintain high data quality and ensure the integrity of your databases.
