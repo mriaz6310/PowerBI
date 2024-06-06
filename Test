@@ -140,3 +140,17 @@ By running these SQL queries, you can systematically verify that:
 - There are no unexpected records missing from either table.
 
 These checks help ensure data quality and integrity across different datasets.
+
+
+
+SELECT 
+    COLUMN_NAME, 
+    DATA_TYPE, 
+    CHARACTER_MAXIMUM_LENGTH, 
+    IS_NULLABLE, 
+    COLUMN_DEFAULT
+FROM 
+    INFORMATION_SCHEMA.COLUMNS
+WHERE 
+    TABLE_NAME = 'Orders' AND TABLE_SCHEMA = 'dbo';
+
