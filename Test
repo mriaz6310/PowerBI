@@ -1,1 +1,142 @@
+An A-B check for data quality is a comparison between two datasets to verify their consistency, accuracy, or to identify discrepancies. This is commonly used to validate data synchronization between two systems, data migrations, or to compare different stages in a data pipeline.
 
+Let's consider two tables, `TableA` and `TableB`, where you want to ensure that:
+
+1. Both tables have the same set of records (row-level consistency).
+2. Specific columns in both tables contain matching values (column-level consistency).
+
+Here are examples of SQL queries for performing A-B checks:
+
+### 1. Row Count Check
+
+Ensure both tables have the same number of rows.
+
+```sql
+-- Row count comparison
+SELECT 
+    (SELECT COUNT(*) FROM TableA) AS TableA_RowCount,
+    (SELECT COUNT(*) FROM TableB) AS TableB_RowCount;
+```
+
+### 2. Primary Key Check
+
+Ensure both tables have the same set of primary key values.
+
+```sql
+-- Assuming 'PrimaryKey' is the primary key column in both tables
+-- Find keys in TableA but not in TableB
+SELECT PrimaryKey
+FROM TableA
+WHERE PrimaryKey NOT IN (SELECT PrimaryKey FROM TableB);
+
+-- Find keys in TableB but not in TableA
+SELECT PrimaryKey
+FROM TableB
+WHERE PrimaryKey NOT IN (SELECT PrimaryKey FROM TableA);
+```
+
+### 3. Column Value Check
+
+Compare the values of specific columns in both tables for matching primary keys.
+
+```sql
+-- Assuming columns 'Column1', 'Column2' need to be compared
+-- Differences in 'Column1' for matching keys
+SELECT a.PrimaryKey, a.Column1 AS TableA_Column1, b.Column1 AS TableB_Column1
+FROM TableA a
+JOIN TableB b ON a.PrimaryKey = b.PrimaryKey
+WHERE a.Column1 <> b.Column1 OR a.Column1 IS NULL OR b.Column1 IS NULL;
+
+-- Differences in 'Column2' for matching keys
+SELECT a.PrimaryKey, a.Column2 AS TableA_Column2, b.Column2 AS TableB_Column2
+FROM TableA a
+JOIN TableB b ON a.PrimaryKey = b.PrimaryKey
+WHERE a.Column2 <> b.Column2 OR a.Column2 IS NULL OR b.Column2 IS NULL;
+```
+
+### 4. Full Row Comparison
+
+Ensure all columns match between the two tables for each primary key. This can be more complex depending on the number of columns but is essential for complete data validation.
+
+```sql
+-- Assuming the tables have columns Column1, Column2, Column3, etc.
+-- Identify rows with any column mismatch
+SELECT a.*
+FROM TableA a
+JOIN TableB b ON a.PrimaryKey = b.PrimaryKey
+WHERE 
+    (a.Column1 <> b.Column1 OR (a.Column1 IS NULL AND b.Column1 IS NOT NULL) OR (a.Column1 IS NOT NULL AND b.Column1 IS NULL))
+    OR (a.Column2 <> b.Column2 OR (a.Column2 IS NULL AND b.Column2 IS NOT NULL) OR (a.Column2 IS NOT NULL AND b.Column2 IS NULL))
+    OR (a.Column3 <> b.Column3 OR (a.Column3 IS NULL AND b.Column3 IS NOT NULL) OR (a.Column3 IS NOT NULL AND b.Column3 IS NULL));
+```
+
+### 5. Aggregate Value Check
+
+Ensure that aggregate values (e.g., sums, averages) for specific columns match between the two tables.
+
+```sql
+-- Sum of 'Amount' column comparison
+SELECT 
+    (SELECT SUM(Amount) FROM TableA) AS TableA_AmountSum,
+    (SELECT SUM(Amount) FROM TableB) AS TableB_AmountSum;
+
+-- Average of 'Amount' column comparison
+SELECT 
+    (SELECT AVG(Amount) FROM TableA) AS TableA_AmountAvg,
+    (SELECT AVG(Amount) FROM TableB) AS TableB_AmountAvg;
+```
+
+### 6. Date Range Check
+
+Ensure both tables have records within the same date range.
+
+```sql
+-- Min and Max 'InsertTime' comparison
+SELECT 
+    (SELECT MIN(InsertTime) FROM TableA) AS TableA_MinDate,
+    (SELECT MAX(InsertTime) FROM TableA) AS TableA_MaxDate,
+    (SELECT MIN(InsertTime) FROM TableB) AS TableB_MinDate,
+    (SELECT MAX(InsertTime) FROM TableB) AS TableB_MaxDate;
+```
+
+### 7. Missing Records Check
+
+Identify records present in one table but missing in another based on primary key.
+
+```sql
+-- Records in TableA but not in TableB
+SELECT a.*
+FROM TableA a
+LEFT JOIN TableB b ON a.PrimaryKey = b.PrimaryKey
+WHERE b.PrimaryKey IS NULL;
+
+-- Records in TableB but not in TableA
+SELECT b.*
+FROM TableB b
+LEFT JOIN TableA a ON b.PrimaryKey = a.PrimaryKey
+WHERE a.PrimaryKey IS NULL;
+```
+
+### 8. Count of Distinct Values
+
+Compare the count of distinct values in specific columns between the two tables.
+
+```sql
+-- Count of distinct values in 'Category' column
+SELECT 
+    (SELECT COUNT(DISTINCT Category) FROM TableA) AS TableA_DistinctCategoryCount,
+    (SELECT COUNT(DISTINCT Category) FROM TableB) AS TableB_DistinctCategoryCount;
+```
+
+### Example Scenario
+
+Assume `TableA` is the source table and `TableB` is the destination table after a data migration. You want to ensure the data in `TableB` matches the original data in `TableA`. 
+
+By running these SQL queries, you can systematically verify that:
+
+- Both tables have the same number of records.
+- All primary keys in `TableA` are present in `TableB`.
+- Values in key columns are consistent between the two tables.
+- There are no unexpected records missing from either table.
+
+These checks help ensure data quality and integrity across different datasets.
