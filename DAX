@@ -530,3 +530,81 @@ GROUP BY ImportantColumn;
 ```
 
 By running these checks regularly, you can maintain high data quality and ensure the integrity of your databases.
+
+
+
+import psycopg2
+import pandas as pd
+
+# Define the Redshift connection parameters
+redshift_params = {
+    'dbname': 'your_database',
+    'user': 'your_username',
+    'password': 'your_password',
+    'host': 'your_redshift_cluster_endpoint',
+    'port': '5439'  # Default Redshift port
+}
+
+# Define the SQL queries to fetch data from Redshift
+query_table_a = "SELECT * FROM TableA"
+query_table_b = "SELECT * FROM TableB"
+
+# Define a function to establish a connection to Redshift
+def get_redshift_data(query, params):
+    conn = psycopg2.connect(**params)
+    try:
+        df = pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
+    return df
+
+# Retrieve data from Redshift
+data_a = get_redshift_data(query_table_a, redshift_params)
+data_b = get_redshift_data(query_table_b, redshift_params)
+
+# Define a function to perform data quality checks
+def data_quality_check(df, table_name):
+    checks_passed = True
+    checks = []
+
+    # Check 1: Null values in the InsertTime column
+    null_count = df['InsertTime'].isnull().sum()
+    if null_count > 0:
+        checks.append(f"{table_name}: Null values found in InsertTime column.")
+        checks_passed = False
+
+    # Check 2: Future dates in the InsertTime column
+    future_dates = df[df['InsertTime'] > pd.Timestamp.now()].shape[0]
+    if future_dates > 0:
+        checks.append(f"{table_name}: Future dates found in InsertTime column.")
+        checks_passed = False
+
+    # Check 3: Historical dates check (e.g., dates before 2000-01-01)
+    historical_dates = df[df['InsertTime'] < pd.Timestamp('2000-01-01')].shape[0]
+    if historical_dates > 0:
+        checks.append(f"{table_name}: Historical dates found in InsertTime column.")
+        checks_passed = False
+
+    # Add more checks as needed
+    # ...
+
+    # If no issues were found, add a pass message
+    if checks_passed:
+        checks.append(f"{table_name}: All checks passed.")
+
+    return checks_passed, checks
+
+# Perform data quality checks on both tables
+status_a, messages_a = data_quality_check(data_a, "TableA")
+status_b, messages_b = data_quality_check(data_b, "TableB")
+
+# Print the results
+print("\n".join(messages_a))
+print("\n".join(messages_b))
+
+# Overall status
+if status_a and status_b:
+    print("Overall Status: PASS")
+else:
+    print("Overall Status: FAIL")
+
