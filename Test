@@ -157,20 +157,17 @@ WHERE
 
 
 SELECT 
-    col.name AS COLUMN_NAME
+    kc.column_name
 FROM 
-    sys.indexes idx
-INNER JOIN 
-    sys.index_columns idx_col ON idx.object_id = idx_col.object_id AND idx.index_id = idx_col.index_id
-INNER JOIN 
-    sys.columns col ON idx.object_id = col.object_id AND idx_col.column_id = col.column_id
-INNER JOIN 
-    sys.tables tbl ON idx.object_id = tbl.object_id
-INNER JOIN 
-    sys.schemas sch ON tbl.schema_id = sch.schema_id
+    information_schema.table_constraints AS tc
+JOIN 
+    information_schema.key_column_usage AS kc 
+    ON tc.constraint_name = kc.constraint_name
+    AND tc.table_schema = kc.table_schema
 WHERE 
-    idx.is_primary_key = 1
-    AND tbl.name = 'employees'
-    AND sch.name = 'dbo';
+    tc.constraint_type = 'PRIMARY KEY'
+    AND tc.table_name = 'your_table_name'
+    AND tc.table_schema = 'your_schema_name';
+
 
 
