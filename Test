@@ -156,17 +156,21 @@ WHERE
 
 
 
-SELECT 
-    c.name AS COLUMN_NAME
-FROM 
-    sys.indexes i
-INNER JOIN 
-    sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-INNER JOIN 
-    sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-INNER JOIN 
-    sys.tables t ON i.object_id = t.object_id
-WHERE 
-    i.is_primary_key = 1
-    AND t.name = 'your_table_name'
-    AND t.schema_id = SCHEMA_ID('your_schema_name');
+SELECT
+    a.attname AS COLUMN_NAME
+FROM
+    pg_class t,
+    pg_class i,
+    pg_index ix,
+    pg_attribute a,
+    pg_namespace n
+WHERE
+    t.oid = ix.indrelid
+    AND i.oid = ix.indexrelid
+    AND a.attrelid = t.oid
+    AND a.attnum = ANY(ix.indkey)
+    AND t.relkind = 'r'
+    AND n.oid = t.relnamespace
+    AND n.nspname = 'your_schema_name'
+    AND t.relname = 'your_table_name'
+    AND ix.indisprimary;
