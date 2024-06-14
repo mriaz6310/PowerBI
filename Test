@@ -157,15 +157,20 @@ WHERE
 
 
 SELECT 
-    a.attname AS column_name
+    col.name AS COLUMN_NAME
 FROM 
-    pg_class t
-    JOIN pg_index ix ON t.oid = ix.indrelid
-    JOIN pg_attribute a ON t.oid = a.attrelid
-    JOIN pg_namespace n ON n.oid = t.relnamespace
+    sys.indexes idx
+INNER JOIN 
+    sys.index_columns idx_col ON idx.object_id = idx_col.object_id AND idx.index_id = idx_col.index_id
+INNER JOIN 
+    sys.columns col ON idx.object_id = col.object_id AND idx_col.column_id = col.column_id
+INNER JOIN 
+    sys.tables tbl ON idx.object_id = tbl.object_id
+INNER JOIN 
+    sys.schemas sch ON tbl.schema_id = sch.schema_id
 WHERE 
-    t.relname = 'employees'
-    AND n.nspname = 'public'
-    AND ix.indisprimary
-    AND a.attnum = ANY(ix.indkey);
+    idx.is_primary_key = 1
+    AND tbl.name = 'employees'
+    AND sch.name = 'dbo';
+
 
