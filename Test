@@ -156,21 +156,16 @@ WHERE
 
 
 
-SELECT
-    a.attname AS COLUMN_NAME
-FROM
-    pg_class t,
-    pg_class i,
-    pg_index ix,
-    pg_attribute a,
-    pg_namespace n
-WHERE
-    t.oid = ix.indrelid
-    AND i.oid = ix.indexrelid
-    AND a.attrelid = t.oid
-    AND a.attnum = ANY(ix.indkey)
-    AND t.relkind = 'r'
-    AND n.oid = t.relnamespace
-    AND n.nspname = 'your_schema_name'
-    AND t.relname = 'your_table_name'
-    AND ix.indisprimary;
+SELECT 
+    a.attname AS column_name
+FROM 
+    pg_class t
+    JOIN pg_index ix ON t.oid = ix.indrelid
+    JOIN pg_attribute a ON t.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+WHERE 
+    t.relname = 'employees'
+    AND n.nspname = 'public'
+    AND ix.indisprimary
+    AND a.attnum = ANY(ix.indkey);
+
