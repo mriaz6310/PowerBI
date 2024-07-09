@@ -212,3 +212,40 @@ s3_client.upload_file('combined_data.json', bucket_name, 'combined_data.json')
 print("Combined JSON file created and uploaded successfully.")
 
 
+# Upload the JSON file to S3
+import boto3
+
+s3_client = boto3.client('s3')
+bucket_name = 'your-bucket-name'
+json_file_path = 'path/to/your/large_json_file.json'
+s3_key = 'your-folder/large_json_file.json'
+
+s3_client.upload_file(json_file_path, bucket_name, s3_key)
+
+# Load data into Redshift using the COPY command
+conn = psycopg2.connect(
+    dbname=redshift_db,
+    user=redshift_user,
+    password=redshift_password,
+    host=redshift_endpoint,
+    port=redshift_port
+)
+cur = conn.cursor()
+
+copy_sql = """
+COPY your_table_name (column1, column2, column3)
+FROM 's3://your-bucket-name/your-folder/large_json_file.json'
+IAM_ROLE 'arn:aws:iam::your-account-id:role/your-redshift-role'
+FORMAT AS JSON 'auto';
+"""
+
+# Execute the COPY command
+cur.execute(copy_sql)
+conn.commit()
+
+# Close the connection
+cur.close()
+conn.close()
+
+
+
