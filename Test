@@ -249,3 +249,42 @@ conn.close()
 
 
 
+import json
+
+# JSON schema definition
+schema_json = '''
+{
+  "schema": "my_new_schema",
+  "tables": [
+    {
+      "table_name": "my_new_table",
+      "columns": [
+        {"name": "column1", "type": "VARCHAR(255)"},
+        {"name": "column2", "type": "INTEGER"},
+        {"name": "column3", "type": "BOOLEAN"}
+      ]
+    }
+  ]
+}
+'''
+
+# Parse the JSON
+schema = json.loads(schema_json)
+
+# Generate SQL for creating schema
+create_schema_sql = f"CREATE SCHEMA {schema['schema']};\n"
+
+# Generate SQL for creating tables
+create_table_sql = ""
+for table in schema['tables']:
+    table_name = table['table_name']
+    columns = table['columns']
+    columns_sql = ", ".join([f"{col['name']} {col['type']}" for col in columns])
+    create_table_sql += f"CREATE TABLE {schema['schema']}.{table_name} ({columns_sql});\n"
+
+# Combine the SQL statements
+full_sql = create_schema_sql + create_table_sql
+print(full_sql)
+
+
+
