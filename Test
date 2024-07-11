@@ -429,3 +429,69 @@ print("Data loaded successfully into Redshift")
 
 
 
+import pandas as pd
+import psycopg2
+
+# Load the CSV file into a DataFrame
+file_path = '/mnt/data/your_sample_data.csv'  # Replace with your actual file path
+df = pd.read_csv(file_path)
+
+# Ensure all required columns are present
+required_columns = [
+    'data_type', 'data_version', 'cve_id', 'assigner_org_id', 'state', 'assigner_short_name', 
+    'date_reserved', 'date_published', 'date_updated', 'provider_org_id', 
+    'provider_short_name', 'provider_date_updated', 'affected', 'metrics', 
+    'descriptions', 'problem_types', 'title'
+]
+
+for column in required_columns:
+    if column not in df.columns:
+        df[column] = None  # Fill missing columns with None
+
+# Establish a connection to Redshift
+redshift_conn = psycopg2.connect(
+    dbname='your_db_name',
+    user='your_username',
+    password='your_password',
+    host='your_redshift_cluster',
+    port='your_port'
+)
+redshift_cursor = redshift_conn.cursor()
+
+# Define the insert query
+insert_query = """
+INSERT INTO cve_data (data_type, data_version, cve_id, assigner_org_id, state, assigner_short_name, date_reserved, date_published, date_updated, provider_org_id, provider_short_name, provider_date_updated, affected, metrics, descriptions, problem_types, title)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+"""
+
+# Execute the insert query for each row
+for index, row in df.iterrows():
+    redshift_cursor.execute(insert_query, [
+        row['data_type'],
+        row['data_version'],
+        row['cve_id'],
+        row['assigner_org_id'],
+        row['state'],
+        row['assigner_short_name'],
+        row['date_reserved'],
+        row['date_published'],
+        row['date_updated'],
+        row['provider_org_id'],
+        row['provider_short_name'],
+        row['provider_date_updated'],
+        row['affected'],
+        row['metrics'],
+        row['descriptions'],
+        row['problem_types'],
+        row['title']
+    ])
+
+# Commit the transaction and close the connection
+redshift_conn.commit()
+redshift_cursor.close()
+redshift_conn.close()
+
+
+
+
+
