@@ -510,6 +510,34 @@ redshift_conn.close()
 
 
 
+import pandas as pd
+import psycopg2
+
+# Load the CSV file into a DataFrame
+file_path = '/mnt/data/your_sample_data.csv'  # Replace with your actual file path
+df = pd.read_csv(file_path)
+
+# Define the list of required columns and their default values
+required_columns = {
+    'data_type': None,
+    'data_version': None,
+    'cve_id': None,
+    'assigner_org_id': None,
+    'state': None,
+    'assigner_short_name': None,
+    'date_reserved': None,
+    'date_published': None,
+    'date_updated': None,
+    'provider_org_id': None,
+    'provider_short_name': None,
+    'provider_date_updated': None,
+    'affected': None,
+    'metrics': None,
+    'descriptions': None,
+    'problem_types': None,
+    'title': None
+}
+
 # Define maximum lengths for columns
 max_lengths = {
     'data_type': 100,
@@ -538,6 +566,48 @@ def get_value(row, key, default=None, max_length=None):
         value = value[:max_length]  # Truncate value to the maximum length
     return value
 
+# Establish a connection to Redshift
+redshift_conn = psycopg2.connect(
+    dbname='your_db_name',
+    user='your_username',
+    password='your_password',
+    host='your_redshift_cluster',
+    port='your_port'
+)
+redshift_cursor = redshift_conn.cursor()
+
+# Define the insert query
+insert_query = """
+INSERT INTO cve_data (data_type, data_version, cve_id, assigner_org_id, state, assigner_short_name, date_reserved, date_published, date_updated, provider_org_id, provider_short_name, provider_date_updated, affected, metrics, descriptions, problem_types, title)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+"""
+
+# Execute the insert query for each row
+for index, row in df.iterrows():
+    redshift_cursor.execute(insert_query, [
+        get_value(row, 'data_type', required_columns['data_type'], max_lengths['data_type']),
+        get_value(row, 'data_version', required_columns['data_version'], max_lengths['data_version']),
+        get_value(row, 'cve_id', required_columns['cve_id'], max_lengths['cve_id']),
+        get_value(row, 'assigner_org_id', required_columns['assigner_org_id'], max_lengths['assigner_org_id']),
+        get_value(row, 'state', required_columns['state'], max_lengths['state']),
+        get_value(row, 'assigner_short_name', required_columns['assigner_short_name'], max_lengths['assigner_short_name']),
+        get_value(row, 'date_reserved', required_columns['date_reserved'], max_lengths['date_reserved']),
+        get_value(row, 'date_published', required_columns['date_published'], max_lengths['date_published']),
+        get_value(row, 'date_updated', required_columns['date_updated'], max_lengths['date_updated']),
+        get_value(row, 'provider_org_id', required_columns['provider_org_id'], max_lengths['provider_org_id']),
+        get_value(row, 'provider_short_name', required_columns['provider_short_name'], max_lengths['provider_short_name']),
+        get_value(row, 'provider_date_updated', required_columns['provider_date_updated'], max_lengths['provider_date_updated']),
+        get_value(row, 'affected', required_columns['affected'], max_lengths['affected']),
+        get_value(row, 'metrics', required_columns['metrics'], max_lengths['metrics']),
+        get_value(row, 'descriptions', required_columns['descriptions'], max_lengths['descriptions']),
+        get_value(row, 'problem_types', required_columns['problem_types'], max_lengths['problem_types']),
+        get_value(row, 'title', required_columns['title'], max_lengths['title'])
+    ])
+
+# Commit the transaction and close the connection
+redshift_conn.commit()
+redshift_cursor.close()
+redshift_conn.close()
 
 
 
