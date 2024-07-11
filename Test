@@ -584,31 +584,31 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 
 # Execute the insert query for each row
 for index, row in df.iterrows():
+    # Convert the row to a dictionary
+    row_dict = row.to_dict()
+
+    # Execute the query with truncated values
     redshift_cursor.execute(insert_query, [
-        get_value(row, 'data_type', required_columns['data_type'], max_lengths['data_type']),
-        get_value(row, 'data_version', required_columns['data_version'], max_lengths['data_version']),
-        get_value(row, 'cve_id', required_columns['cve_id'], max_lengths['cve_id']),
-        get_value(row, 'assigner_org_id', required_columns['assigner_org_id'], max_lengths['assigner_org_id']),
-        get_value(row, 'state', required_columns['state'], max_lengths['state']),
-        get_value(row, 'assigner_short_name', required_columns['assigner_short_name'], max_lengths['assigner_short_name']),
-        get_value(row, 'date_reserved', required_columns['date_reserved'], max_lengths['date_reserved']),
-        get_value(row, 'date_published', required_columns['date_published'], max_lengths['date_published']),
-        get_value(row, 'date_updated', required_columns['date_updated'], max_lengths['date_updated']),
-        get_value(row, 'provider_org_id', required_columns['provider_org_id'], max_lengths['provider_org_id']),
-        get_value(row, 'provider_short_name', required_columns['provider_short_name'], max_lengths['provider_short_name']),
-        get_value(row, 'provider_date_updated', required_columns['provider_date_updated'], max_lengths['provider_date_updated']),
-        get_value(row, 'affected', required_columns['affected'], max_lengths['affected']),
-        get_value(row, 'metrics', required_columns['metrics'], max_lengths['metrics']),
-        get_value(row, 'descriptions', required_columns['descriptions'], max_lengths['descriptions']),
-        get_value(row, 'problem_types', required_columns['problem_types'], max_lengths['problem_types']),
-        get_value(row, 'title', required_columns['title'], max_lengths['title'])
+        get_value(row_dict, 'data_type', required_columns['data_type'], max_lengths['data_type']),
+        get_value(row_dict, 'data_version', required_columns['data_version'], max_lengths['data_version']),
+        get_value(row_dict, 'cve_id', required_columns['cve_id'], max_lengths['cve_id']),
+        get_value(row_dict, 'assigner_org_id', required_columns['assigner_org_id'], max_lengths['assigner_org_id']),
+        get_value(row_dict, 'state', required_columns['state'], max_lengths['state']),
+        get_value(row_dict, 'assigner_short_name', required_columns['assigner_short_name'], max_lengths['assigner_short_name']),
+        get_value(row_dict, 'date_reserved', required_columns['date_reserved'], max_lengths['date_reserved']),
+        get_value(row_dict, 'date_published', required_columns['date_published'], max_lengths['date_published']),
+        get_value(row_dict, 'date_updated', required_columns['date_updated'], max_lengths['date_updated']),
+        get_value(row_dict, 'provider_org_id', required_columns['provider_org_id'], max_lengths['provider_org_id']),
+        get_value(row_dict, 'provider_short_name', required_columns['provider_short_name'], max_lengths['provider_short_name']),
+        get_value(row_dict, 'provider_date_updated', required_columns['provider_date_updated'], max_lengths['provider_date_updated']),
+        get_value(row_dict, 'affected', required_columns['affected'], max_lengths['affected']),
+        get_value(row_dict, 'metrics', required_columns['metrics'], max_lengths['metrics']),
+        get_value(row_dict, 'descriptions', required_columns['descriptions'], max_lengths['descriptions']),
+        get_value(row_dict, 'problem_types', required_columns['problem_types'], max_lengths['problem_types']),
+        get_value(row_dict, 'title', required_columns['title'], max_lengths['title'])
     ])
 
 # Commit the transaction and close the connection
 redshift_conn.commit()
 redshift_cursor.close()
 redshift_conn.close()
-
-
-
-
