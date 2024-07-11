@@ -344,3 +344,88 @@ conn.close()
 
 
 
+
+
+
+import boto3
+import pandas as pd
+import psycopg2
+import json
+
+# AWS S3 Configuration
+s3_bucket = 'your-s3-bucket-name'
+s3_key = 'path/to/your/csvfile.csv'
+
+# Redshift Configuration
+redshift_endpoint = 'your-redshift-endpoint'
+redshift_user = 'your-username'
+redshift_password = 'your-password'
+redshift_database = 'your-database'
+redshift_port = 5439
+
+# Download CSV from S3
+s3_client = boto3.client('s3')
+s3_client.download_file(s3_bucket, s3_key, 'localfile.csv')
+
+# Read CSV into DataFrame
+df = pd.read_csv('localfile.csv')
+
+# Process DataFrame to ensure semi-structured columns are JSON strings
+def convert_to_json_string(column):
+    return column.apply(lambda x: json.dumps(x) if isinstance(x, (dict, list)) else x)
+
+df['semi_structured_col1'] = convert_to_json_string(df['semi_structured_col1'])
+df['semi_structured_col2'] = convert_to_json_string(df['semi_structured_col2'])
+df['semi_structured_col3'] = convert_to_json_string(df['semi_structured_col3'])
+
+# Connect to Redshift
+conn = psycopg2.connect(
+    dbname=redshift_database,
+    user=redshift_user,
+    password=redshift_password,
+    host=redshift_endpoint,
+    port=redshift_port
+)
+cur = conn.cursor()
+
+# Create table if not exists
+create_table_query = """
+CREATE TABLE IF NOT EXISTS my_table (
+    id INT,
+    name VARCHAR(255),
+    age INT,
+    semi_structured_col1 SUPER,
+    semi_structured_col2 SUPER,
+    semi_structured_col3 SUPER
+);
+"""
+cur.execute(create_table_query)
+conn.commit()
+
+# Insert data into Redshift
+insert_query = """
+INSERT INTO my_table (id, name, age, semi_structured_col1, semi_structured_col2, semi_structured_col3)
+VALUES (%s, %s, %s, %s, %s, %s);
+"""
+
+for index, row in df.iterrows():
+    cur.execute(insert_query, (
+        row['id'],
+        row['name'],
+        row['age'],
+        row['semi_structured_col1'],
+        row['semi_structured_col2'],
+        row['semi_structured_col3']
+    ))
+
+conn.commit()
+
+# Close connection
+cur.close()
+conn.close()
+
+print("Data loaded successfully into Redshift")
+
+
+
+
