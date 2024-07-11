@@ -510,3 +510,35 @@ redshift_conn.close()
 
 
 
+# Define maximum lengths for columns
+max_lengths = {
+    'data_type': 100,
+    'data_version': 100,
+    'cve_id': 100,
+    'assigner_org_id': 100,
+    'state': 100,
+    'assigner_short_name': 100,
+    'date_reserved': 100,
+    'date_published': 100,
+    'date_updated': 100,
+    'provider_org_id': 100,
+    'provider_short_name': 100,
+    'provider_date_updated': 100,
+    'affected': 100,
+    'metrics': 100,
+    'descriptions': 100,
+    'problem_types': 100,
+    'title': 100
+}
+
+# Helper function to get value with a default for missing keys and truncate if necessary
+def get_value(row, key, default=None, max_length=None):
+    value = row.get(key, default)
+    if max_length and isinstance(value, str) and len(value) > max_length:
+        value = value[:max_length]  # Truncate value to the maximum length
+    return value
+
+
+
+
+
