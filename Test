@@ -840,7 +840,7 @@ previous_loads AS (
     WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
     GROUP BY cve_id
 )
-UPDATE vmtableau.cve_data AS c
+UPDATE vmtableau.cve_data c
 SET 
     date_cvss_added = CASE
         WHEN c.CVSS IS NOT NULL AND
@@ -864,6 +864,5 @@ SET
         ELSE c.date_cwe_added
     END
 FROM current_load cl
-LEFT JOIN previous_loads p ON cl.cve_id = p.cve_id
+LEFT JOIN previous_loads p ON c.cve_id = p.cve_id
 WHERE c.cve_id = cl.cve_id;
-
