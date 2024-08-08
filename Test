@@ -840,29 +840,29 @@ previous_loads AS (
     WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
     GROUP BY cve_id
 )
-UPDATE vmtableau.cve_data c
+UPDATE vmtableau.cve_data
 SET 
     date_cvss_added = CASE
-        WHEN c.CVSS IS NOT NULL AND
-             (p.last_cvss_date IS NULL OR c.last_load_timestamp > p.last_cvss_date) AND
-             c.date_cvss_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cvss_added
+        WHEN current_load.CVSS IS NOT NULL AND
+             (previous_loads.last_cvss_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cvss_date) AND
+             vmtableau.cve_data.date_cvss_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cvss_added
     END,
     date_cpe_added = CASE
-        WHEN c.cpe IS NOT NULL AND
-             (p.last_cpe_date IS NULL OR c.last_load_timestamp > p.last_cpe_date) AND
-             c.date_cpe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cpe_added
+        WHEN current_load.cpe IS NOT NULL AND
+             (previous_loads.last_cpe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cpe_date) AND
+             vmtableau.cve_data.date_cpe_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cpe_added
     END,
     date_cwe_added = CASE
-        WHEN c.cwe_id IS NOT NULL AND
-             (p.last_we_date IS NULL OR c.last_load_timestamp > p.last_we_date) AND
-             c.date_cwe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cwe_added
+        WHEN current_load.cwe_id IS NOT NULL AND
+             (previous_loads.last_we_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_we_date) AND
+             vmtableau.cve_data.date_cwe_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cwe_added
     END
-FROM current_load cl
-LEFT JOIN previous_loads p ON c.cve_id = p.cve_id
-WHERE c.cve_id = cl.cve_id;
+FROM current_load
+JOIN previous_loads ON current_load.cve_id = previous_loads.cve_id
+WHERE vmtableau.cve_data.cve_id = current_load.cve_id;
