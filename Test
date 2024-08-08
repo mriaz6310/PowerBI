@@ -823,3 +823,47 @@ FROM (
 ) AS temp;
 
 
+
+
+WITH current_load AS (
+    SELECT *
+    FROM vmtableau.cve_data
+    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
+),
+previous_loads AS (
+    SELECT
+        cve_id,
+        MAX(CASE WHEN CVSS IS NOT NULL THEN last_load_timestamp END) AS last_cvss_date,
+        MAX(CASE WHEN cpe IS NOT NULL THEN last_load_timestamp END) AS last_cpe_date,
+        MAX(CASE WHEN we_id IS NOT NULL THEN last_load_timestamp END) AS last_we_date
+    FROM vmtableau.cve_data
+    WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
+    GROUP BY cve_id
+)
+UPDATE vmtableau.cve_data AS c
+SET 
+    date_cvss_added = CASE
+        WHEN c.CVSS IS NOT NULL AND
+             (p.last_cvss_date IS NULL OR c.last_load_timestamp > p.last_cvss_date) AND
+             c.date_cvss_added IS NULL
+        THEN c.last_load_timestamp
+        ELSE c.date_cvss_added
+    END,
+    date_cpe_added = CASE
+        WHEN c.cpe IS NOT NULL AND
+             (p.last_cpe_date IS NULL OR c.last_load_timestamp > p.last_cpe_date) AND
+             c.date_cpe_added IS NULL
+        THEN c.last_load_timestamp
+        ELSE c.date_cpe_added
+    END,
+    date_cwe_added = CASE
+        WHEN c.cwe_id IS NOT NULL AND
+             (p.last_we_date IS NULL OR c.last_load_timestamp > p.last_we_date) AND
+             c.date_cwe_added IS NULL
+        THEN c.last_load_timestamp
+        ELSE c.date_cwe_added
+    END
+FROM current_load cl
+LEFT JOIN previous_loads p ON cl.cve_id = p.cve_id
+WHERE c.cve_id = cl.cve_id;
+
