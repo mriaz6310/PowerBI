@@ -1083,3 +1083,67 @@ FROM (
 ) AS subquery
 WHERE vmtableau.cve_data.cve_id = subquery.cve_id;
 
+
+
+
+WITH current_load AS (
+    SELECT *
+    FROM vmtableau.cve_data
+    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
+),
+ordered_loads AS (
+    SELECT 
+        cve_id,
+        last_load_timestamp,
+        CVSS,
+        cpe,
+        cwe_id,
+        ROW_NUMBER() OVER (PARTITION BY cve_id ORDER BY last_load_timestamp) AS rn
+    FROM vmtableau.cve_data
+),
+previous_loads AS (
+    SELECT 
+        current.cve_id,
+        current.last_load_timestamp,
+        MAX(CASE WHEN COALESCE(previous.CVSS, '') != '' THEN previous.last_load_timestamp END) AS last_cvss_date,
+        MAX(CASE WHEN COALESCE(previous.cpe, '') != '' THEN previous.last_load_timestamp END) AS last_cpe_date,
+        MAX(CASE WHEN COALESCE(previous.cwe_id, '') != '' THEN previous.last_load_timestamp END) AS last_cwe_date
+    FROM ordered_loads current
+    LEFT JOIN ordered_loads previous 
+    ON current.cve_id = previous.cve_id AND previous.rn < current.rn
+    GROUP BY current.cve_id, current.last_load_timestamp
+)
+UPDATE vmtableau.cve_data cd
+SET 
+    date_cvss_added = COALESCE(
+        CASE 
+            WHEN COALESCE(cl.CVSS, '') != '' 
+                 AND (pl.last_cvss_date IS NULL OR cl.last_load_timestamp > pl.last_cvss_date) 
+                 AND cd.date_cvss_added IS NULL
+            THEN cl.last_load_timestamp 
+        END,
+        cd.date_cvss_added
+    ),
+    date_cpe_added = COALESCE(
+        CASE 
+            WHEN COALESCE(cl.cpe, '') != '' 
+                 AND (pl.last_cpe_date IS NULL OR cl.last_load_timestamp > pl.last_cpe_date) 
+                 AND cd.date_cpe_added IS NULL
+            THEN cl.last_load_timestamp 
+        END,
+        cd.date_cpe_added
+    ),
+    date_cwe_added = COALESCE(
+        CASE 
+            WHEN COALESCE(cl.cwe_id, '') != '' 
+                 AND (pl.last_cwe_date IS NULL OR cl.last_load_timestamp > pl.last_cwe_date) 
+                 AND cd.date_cwe_added IS NULL
+            THEN cl.last_load_timestamp 
+        END,
+        cd.date_cwe_added
+    )
+FROM vmtableau.cve_data cd
+JOIN current_load cl ON cd.cve_id = cl.cve_id
+JOIN previous_loads pl ON cl.cve_id = pl.cve_id AND cl.last_load_timestamp = pl.last_load_timestamp;
+
+
