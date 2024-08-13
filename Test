@@ -666,166 +666,7 @@ LEFT JOIN previous_loads p ON c.cve_id = p.cve_id;
 
 
 
-WITH current_load AS (
-    SELECT *
-    FROM vmtableau.cve_data
-    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-),
-previous_loads AS (
-    SELECT
-        cve_id,
-        MAX(CASE WHEN CVSS IS NOT NULL THEN last_load_timestamp END) AS last_cvss_date,
-        MAX(CASE WHEN cpe IS NOT NULL THEN last_load_timestamp END) AS last_cpe_date,
-        MAX(CASE WHEN we_id IS NOT NULL THEN last_load_timestamp END) AS last_we_date
-    FROM vmtableau.cve_data
-    WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-    GROUP BY cve_id
-)
-INSERT INTO vmtableau.cve_data (cve_id, CVSS, cpe, cwe_id, last_load_timestamp, date_cvss_added, date_cpe_added, date_cwe_added)
-SELECT
-    c.cve_id,
-    c.CVSS,
-    c.cpe,
-    c.cwe_id,
-    c.last_load_timestamp,
-    CASE
-        WHEN c.CVSS IS NOT NULL AND
-             (p.last_cvss_date IS NULL OR c.last_load_timestamp > p.last_cvss_date) AND
-             c.date_cvss_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cvss_added
-    END AS new_date_cvss_added,
-    CASE
-        WHEN c.cpe IS NOT NULL AND
-             (p.last_cpe_date IS NULL OR c.last_load_timestamp > p.last_cpe_date) AND
-             c.date_cpe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cpe_added
-    END AS new_date_cpe_added,
-    CASE
-        WHEN c.cwe_id IS NOT NULL AND
-             (p.last_we_date IS NULL OR c.last_load_timestamp > p.last_we_date) AND
-             c.date_cwe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cwe_added
-    END AS new_date_cwe_added
-FROM current_load c
-LEFT JOIN previous_loads p ON c.cve_id = p.cve_id;
 
-
-
-
-
-
-
-WITH current_load AS (
-    SELECT *
-    FROM vmtableau.cve_data
-    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-),
-previous_loads AS (
-    SELECT
-        cve_id,
-        MAX(CASE WHEN CVSS IS NOT NULL THEN last_load_timestamp END) AS last_cvss_date,
-        MAX(CASE WHEN cpe IS NOT NULL THEN last_load_timestamp END) AS last_cpe_date,
-        MAX(CASE WHEN we_id IS NOT NULL THEN last_load_timestamp END) AS last_we_date
-    FROM vmtableau.cve_data
-    WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-    GROUP BY cve_id
-)
-SELECT
-    c.cve_id,
-    c.CVSS,
-    c.cpe,
-    c.cwe_id,
-    c.last_load_timestamp,
-    CASE
-        WHEN c.CVSS IS NOT NULL AND
-             (p.last_cvss_date IS NULL OR c.last_load_timestamp > p.last_cvss_date) AND
-             c.date_cvss_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cvss_added
-    END AS new_date_cvss_added,
-    CASE
-        WHEN c.cpe IS NOT NULL AND
-             (p.last_cpe_date IS NULL OR c.last_load_timestamp > p.last_cpe_date) AND
-             c.date_cpe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cpe_added
-    END AS new_date_cpe_added,
-    CASE
-        WHEN c.cwe_id IS NOT NULL AND
-             (p.last_we_date IS NULL OR c.last_load_timestamp > p.last_we_date) AND
-             c.date_cwe_added IS NULL
-        THEN c.last_load_timestamp
-        ELSE c.date_cwe_added
-    END AS new_date_cwe_added
-FROM current_load c
-LEFT JOIN previous_loads p ON c.cve_id = p.cve_id;
-
--- Now use the above SELECT statement in the INSERT
-INSERT INTO vmtableau.cve_data (cve_id, CVSS, cpe, cwe_id, last_load_timestamp, date_cvss_added, date_cpe_added, date_cwe_added)
-SELECT
-    cve_id,
-    CVSS,
-    cpe,
-    cwe_id,
-    last_load_timestamp,
-    new_date_cvss_added,
-    new_date_cpe_added,
-    new_date_cwe_added
-FROM (
-    -- This is where the results from the WITH clause are inserted into the table
-    WITH current_load AS (
-        SELECT *
-        FROM vmtableau.cve_data
-        WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-    ),
-    previous_loads AS (
-        SELECT
-            cve_id,
-            MAX(CASE WHEN CVSS IS NOT NULL THEN last_load_timestamp END) AS last_cvss_date,
-            MAX(CASE WHEN cpe IS NOT NULL THEN last_load_timestamp END) AS last_cpe_date,
-            MAX(CASE WHEN we_id IS NOT NULL THEN last_load_timestamp END) AS last_we_date
-        FROM vmtableau.cve_data
-        WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-        GROUP BY cve_id
-    )
-    SELECT
-        c.cve_id,
-        c.CVSS,
-        c.cpe,
-        c.cwe_id,
-        c.last_load_timestamp,
-        CASE
-            WHEN c.CVSS IS NOT NULL AND
-                 (p.last_cvss_date IS NULL OR c.last_load_timestamp > p.last_cvss_date) AND
-                 c.date_cvss_added IS NULL
-            THEN c.last_load_timestamp
-            ELSE c.date_cvss_added
-        END AS new_date_cvss_added,
-        CASE
-            WHEN c.cpe IS NOT NULL AND
-                 (p.last_cpe_date IS NULL OR c.last_load_timestamp > p.last_cpe_date) AND
-                 c.date_cpe_added IS NULL
-            THEN c.last_load_timestamp
-            ELSE c.date_cpe_added
-        END AS new_date_cpe_added,
-        CASE
-            WHEN c.cwe_id IS NOT NULL AND
-                 (p.last_we_date IS NULL OR c.last_load_timestamp > p.last_we_date) AND
-                 c.date_cwe_added IS NULL
-            THEN c.last_load_timestamp
-            ELSE c.date_cwe_added
-        END AS new_date_cwe_added
-    FROM current_load c
-    LEFT JOIN previous_loads p ON c.cve_id = p.cve_id
-) AS temp;
-
-
-
-
-WITH current_load AS (
     SELECT *
     FROM vmtableau.cve_data
     WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
@@ -1149,7 +990,6 @@ JOIN previous_loads pl ON cl.cve_id = pl.cve_id AND cl.last_load_timestamp = pl.
 
 
 
-
 WITH current_load AS (
     SELECT *
     FROM vmtableau.cve_data
@@ -1177,70 +1017,7 @@ previous_loads AS (
     ON current.cve_id = previous.cve_id AND previous.rn < current.rn
     GROUP BY current.cve_id, current.last_load_timestamp
 )
-UPDATE vmtableau.cve_data
-SET 
-    date_cvss_added = COALESCE(
-        CASE 
-            WHEN COALESCE(current_load.CVSS, '') != '' 
-                 AND (previous_loads.last_cvss_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cvss_date) 
-                 AND vmtableau.cve_data.date_cvss_added IS NULL
-            THEN current_load.last_load_timestamp 
-        END,
-        vmtableau.cve_data.date_cvss_added
-    ),
-    date_cpe_added = COALESCE(
-        CASE 
-            WHEN COALESCE(current_load.cpe, '') != '' 
-                 AND (previous_loads.last_cpe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cpe_date) 
-                 AND vmtableau.cve_data.date_cpe_added IS NULL
-            THEN current_load.last_load_timestamp 
-        END,
-        vmtableau.cve_data.date_cpe_added
-    ),
-    date_cwe_added = COALESCE(
-        CASE 
-            WHEN COALESCE(current_load.cwe_id, '') != '' 
-                 AND (previous_loads.last_cwe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cwe_date) 
-                 AND vmtableau.cve_data.date_cwe_added IS NULL
-            THEN current_load.last_load_timestamp 
-        END,
-        vmtableau.cve_data.date_cwe_added
-    )
-FROM vmtableau.cve_data
-JOIN current_load ON vmtableau.cve_data.cve_id = current_load.cve_id
-JOIN previous_loads ON current_load.cve_id = previous_loads.cve_id 
-    AND current_load.last_load_timestamp = previous_loads.last_load_timestamp;
-
-
-
-WITH current_load AS (
-    SELECT *
-    FROM vmtableau.cve_data
-    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
-),
-ordered_loads AS (
-    SELECT 
-        cve_id,
-        last_load_timestamp,
-        CVSS,
-        cpe,
-        cwe_id,
-        ROW_NUMBER() OVER (PARTITION BY cve_id ORDER BY last_load_timestamp) AS rn
-    FROM vmtableau.cve_data
-),
-previous_loads AS (
-    SELECT 
-        current.cve_id,
-        current.last_load_timestamp,
-        MAX(CASE WHEN COALESCE(previous.CVSS, '') != '' THEN previous.last_load_timestamp END) AS last_cvss_date,
-        MAX(CASE WHEN COALESCE(previous.cpe, '') != '' THEN previous.last_load_timestamp END) AS last_cpe_date,
-        MAX(CASE WHEN COALESCE(previous.cwe_id, '') != '' THEN previous.last_load_timestamp END) AS last_cwe_date
-    FROM ordered_loads current
-    LEFT JOIN ordered_loads previous 
-    ON current.cve_id = previous.cve_id AND previous.rn < current.rn
-    GROUP BY current.cve_id, current.last_load_timestamp
-)
-UPDATE vmtableau.cve_data cd
+UPDATE vmtableau.cve_data AS cd
 SET 
     date_cvss_added = COALESCE(
         CASE 
@@ -1275,7 +1052,6 @@ JOIN previous_loads pl
     AND cl.last_load_timestamp = pl.last_load_timestamp
 WHERE cd.cve_id = cl.cve_id
   AND cd.last_load_timestamp = cl.last_load_timestamp;
-
 
 
 
