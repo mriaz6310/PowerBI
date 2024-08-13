@@ -1052,32 +1052,29 @@ previous_loads AS (
     )
     GROUP BY cve_id
 )
-UPDATE vmtableau.cve_data
+UPDATE vmtableau.cve_data AS cd
 SET 
     date_cvss_added = CASE
-        WHEN current_load.CVSS IS NOT NULL AND current_load.CVSS <> '[]' AND
-             (previous_loads.last_cvss_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cvss_date) AND
-             vmtableau.cve_data.date_cvss_added IS NULL
-        THEN current_load.last_load_timestamp
-        ELSE vmtableau.cve_data.date_cvss_added
+        WHEN cl.CVSS IS NOT NULL AND cl.CVSS <> '[]' AND
+             (pl.last_cvss_date IS NULL OR cl.last_load_timestamp > pl.last_cvss_date) AND
+             cd.date_cvss_added IS NULL
+        THEN cl.last_load_timestamp
+        ELSE cd.date_cvss_added
     END,
     date_cpe_added = CASE
-        WHEN current_load.cpe IS NOT NULL AND current_load.cpe <> '[]' AND
-             (previous_loads.last_cpe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cpe_date) AND
-             vmtableau.cve_data.date_cpe_added IS NULL
-        THEN current_load.last_load_timestamp
-        ELSE vmtableau.cve_data.date_cpe_added
+        WHEN cl.cpe IS NOT NULL AND cl.cpe <> '[]' AND
+             (pl.last_cpe_date IS NULL OR cl.last_load_timestamp > pl.last_cpe_date) AND
+             cd.date_cpe_added IS NULL
+        THEN cl.last_load_timestamp
+        ELSE cd.date_cpe_added
     END,
     date_cwe_added = CASE
-        WHEN current_load.cwe_id IS NOT NULL AND current_load.cwe_id <> '[]' AND
-             (previous_loads.last_cwe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cwe_date) AND
-             vmtableau.cve_data.date_cwe_added IS NULL
-        THEN current_load.last_load_timestamp
-        ELSE vmtableau.cve_data.date_cwe_added
+        WHEN cl.cwe_id IS NOT NULL AND cl.cwe_id <> '[]' AND
+             (pl.last_cwe_date IS NULL OR cl.last_load_timestamp > pl.last_cwe_date) AND
+             cd.date_cwe_added IS NULL
+        THEN cl.last_load_timestamp
+        ELSE cd.date_cwe_added
     END
-FROM vmtableau.cve_data
-JOIN current_load ON vmtableau.cve_data.cve_id = current_load.cve_id
-LEFT JOIN previous_loads ON current_load.cve_id = previous_loads.cve_id
-WHERE current_load.rn = 1;
-
-
+FROM current_load AS cl
+LEFT JOIN previous_loads AS pl ON cl.cve_id = pl.cve_id
+WHERE cd.cve_id = cl.cve_id AND cl.rn = 1;
