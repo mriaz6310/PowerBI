@@ -914,3 +914,47 @@ FROM current_load
 JOIN previous_loads ON current_load.cve_id = previous_loads.cve_id
 WHERE vmtableau.cve_data.cve_id = current_load.cve_id;
 
+
+
+WITH current_load AS (
+    SELECT *
+    FROM vmtableau.cve_data
+    WHERE last_load_timestamp = (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
+),
+previous_loads AS (
+    SELECT
+        cve_id,
+        MAX(CASE WHEN COALESCE(CVSS, '') != '' THEN last_load_timestamp END) AS last_cvss_date,
+        MAX(CASE WHEN COALESCE(cpe, '') != '' THEN last_load_timestamp END) AS last_cpe_date,
+        MAX(CASE WHEN COALESCE(we_id, '') != '' THEN last_load_timestamp END) AS last_we_date
+    FROM vmtableau.cve_data
+    WHERE last_load_timestamp < (SELECT MAX(last_load_timestamp) FROM vmtableau.cve_data)
+    GROUP BY cve_id
+)
+UPDATE vmtableau.cve_data
+SET 
+    date_cvss_added = CASE
+        WHEN COALESCE(current_load.CVSS, '') != '' AND
+             (previous_loads.last_cvss_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cvss_date) AND
+             vmtableau.cve_data.date_cvss_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cvss_added
+    END,
+    date_cpe_added = CASE
+        WHEN COALESCE(current_load.cpe, '') != '' AND
+             (previous_loads.last_cpe_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_cpe_date) AND
+             vmtableau.cve_data.date_cpe_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cpe_added
+    END,
+    date_cwe_added = CASE
+        WHEN COALESCE(current_load.cwe_id, '') != '' AND
+             (previous_loads.last_we_date IS NULL OR current_load.last_load_timestamp > previous_loads.last_we_date) AND
+             vmtableau.cve_data.date_cwe_added IS NULL
+        THEN current_load.last_load_timestamp
+        ELSE vmtableau.cve_data.date_cwe_added
+    END
+FROM current_load
+JOIN previous_loads ON current_load.cve_id = previous_loads.cve_id
+WHERE vmtableau.cve_data.cve_id = current_load.cve_id;
+
