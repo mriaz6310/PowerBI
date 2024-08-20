@@ -1579,3 +1579,16 @@ SET
     date_cpe_added = CASE WHEN cpe IS NULL THEN NULL ELSE date_cpe_added END,
     date_cwe_added = CASE WHEN cwe_id IS NULL THEN NULL ELSE date_cwe_added END;
 
+
+
+
+UPDATE vmtableau.cve_data
+SET 
+    cpe = CASE WHEN TRIM(cpe) = '[]' OR TRIM(cpe) = '' THEN NULL ELSE cpe END,
+    cwe_id = CASE WHEN TRIM(cwe_id) = '[]' OR TRIM(cwe_id) = '' THEN NULL ELSE cwe_id END,
+    CVSS = CASE WHEN TRIM(CVSS) = '[]' OR TRIM(CVSS) = '' THEN NULL ELSE CVSS END
+WHERE TRIM(cpe) IN ('[]', '') 
+   OR TRIM(cwe_id) IN ('[]', '') 
+   OR TRIM(CVSS) IN ('[]', '');
+
+
