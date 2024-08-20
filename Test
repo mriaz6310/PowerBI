@@ -1336,6 +1336,7 @@ WHERE vmtableau.cve_data.cve_id = fo.cve_id;
 
 
 
+
 WITH ordered_loads AS (
     SELECT 
         cve_id,
@@ -1353,10 +1354,10 @@ first_occurrences AS (
                 WHEN COALESCE(CVSS, '') != '' AND CVSS IS NOT NULL THEN last_load_timestamp 
             END) AS first_cvss_date,
         MIN(CASE 
-                WHEN COALESCE(array_to_string(cpe, ''), '') != '' AND cpe IS NOT NULL THEN last_load_timestamp 
+                WHEN COALESCE(cpe, '') != '' AND cpe IS NOT NULL AND cardinality(cpe) > 0 THEN last_load_timestamp 
             END) AS first_cpe_date,
         MIN(CASE 
-                WHEN COALESCE(CWE_ID, '') != '' AND CWE_ID IS NOT NULL THEN last_load_timestamp 
+                WHEN COALESCE(cwe_id, '') != '' AND cwe_id IS NOT NULL THEN last_load_timestamp 
             END) AS first_cwe_date
     FROM ordered_loads
     GROUP BY cve_id
@@ -1373,7 +1374,7 @@ SET
     ),
     date_cpe_added = COALESCE(
         CASE 
-            WHEN COALESCE(array_to_string(vmtableau.cve_data.cpe, ''), '') != '' AND vmtableau.cve_data.cpe IS NOT NULL AND
+            WHEN COALESCE(vmtableau.cve_data.cpe, '') != '' AND vmtableau.cve_data.cpe IS NOT NULL AND cardinality(vmtableau.cve_data.cpe) > 0 AND
                  (fo.first_cpe_date IS NOT NULL AND vmtableau.cve_data.last_load_timestamp >= fo.first_cpe_date) 
             THEN fo.first_cpe_date 
         END,
@@ -1389,5 +1390,3 @@ SET
     )
 FROM first_occurrences fo
 WHERE vmtableau.cve_data.cve_id = fo.cve_id;
-
-
