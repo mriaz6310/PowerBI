@@ -1572,3 +1572,10 @@ SET
 FROM first_occurrences fo
 WHERE vmtableau.cve_data.cve_id = fo.cve_id;
 
+
+UPDATE vmtableau.cve_data
+SET 
+    date_cvss_added = CASE WHEN CVSS IS NULL THEN NULL ELSE date_cvss_added END,
+    date_cpe_added = CASE WHEN cpe IS NULL THEN NULL ELSE date_cpe_added END,
+    date_cwe_added = CASE WHEN cwe_id IS NULL THEN NULL ELSE date_cwe_added END;
+
