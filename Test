@@ -1274,3 +1274,64 @@ FROM first_occurrences fo
 WHERE vmtableau.cve_data.cve_id = fo.cve_id;
 
 
+
+
+
+WITH ordered_loads AS (
+    SELECT 
+        cve_id,
+        last_load_timestamp,
+        CVSS,
+        cpe,
+        cwe_id,
+        ROW_NUMBER() OVER (PARTITION BY cve_id ORDER BY last_load_timestamp) AS rn
+    FROM vmtableau.cve_data
+),
+first_occurrences AS (
+    SELECT 
+        cve_id,
+        MIN(CASE 
+                WHEN (COALESCE(CVSS, '') != '' AND COALESCE(CAST(CVSS AS VARCHAR), '') != '[]') 
+                THEN last_load_timestamp 
+            END) AS first_cvss_date,
+        MIN(CASE 
+                WHEN (COALESCE(cpe, '') != '' AND COALESCE(CAST(cpe AS VARCHAR), '') != '[]') 
+                THEN last_load_timestamp 
+            END) AS first_cpe_date,
+        MIN(CASE 
+                WHEN (COALESCE(cwe_id, '') != '' AND COALESCE(CAST(cwe_id AS VARCHAR), '') != '[]') 
+                THEN last_load_timestamp 
+            END) AS first_cwe_date
+    FROM ordered_loads
+    GROUP BY cve_id
+)
+UPDATE vmtableau.cve_data
+SET 
+    date_cvss_added = COALESCE(
+        CASE 
+            WHEN (COALESCE(vmtableau.cve_data.CVSS, '') != '' AND COALESCE(CAST(vmtableau.cve_data.CVSS AS VARCHAR), '') != '[]') AND
+                 (fo.first_cvss_date IS NOT NULL AND vmtableau.cve_data.last_load_timestamp >= fo.first_cvss_date) 
+            THEN fo.first_cvss_date 
+        END,
+        vmtableau.cve_data.date_cvss_added
+    ),
+    date_cpe_added = COALESCE(
+        CASE 
+            WHEN (COALESCE(vmtableau.cve_data.cpe, '') != '' AND COALESCE(CAST(vmtableau.cve_data.cpe AS VARCHAR), '') != '[]') AND
+                 (fo.first_cpe_date IS NOT NULL AND vmtableau.cve_data.last_load_timestamp >= fo.first_cpe_date) 
+            THEN fo.first_cpe_date 
+        END,
+        vmtableau.cve_data.date_cpe_added
+    ),
+    date_cwe_added = COALESCE(
+        CASE 
+            WHEN (COALESCE(vmtableau.cve_data.cwe_id, '') != '' AND COALESCE(CAST(vmtableau.cve_data.cwe_id AS VARCHAR), '') != '[]') AND
+                 (fo.first_cwe_date IS NOT NULL AND vmtableau.cve_data.last_load_timestamp >= fo.first_cwe_date) 
+            THEN fo.first_cwe_date 
+        END,
+        vmtableau.cve_data.date_cwe_added
+    )
+FROM first_occurrences fo
+WHERE vmtableau.cve_data.cve_id = fo.cve_id;
+
+
