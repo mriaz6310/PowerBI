@@ -743,3 +743,47 @@ def descriptive_stats(dataframe, ticket_id):
 
 result_df = descriptive_stats(your_dataframe, 'your_ticket_id')
 print(result_df)
+
+
+
+import subprocess
+import sys
+from datetime import datetime
+import os
+
+def log_script_execution(script_name, status):
+    # Ensure the Logs directory exists
+    log_directory = "Logs"
+    os.makedirs(log_directory, exist_ok=True)
+
+    # Create or open the log file in append mode
+    log_file_path = os.path.join(log_directory, "execution_log.txt")
+    with open(log_file_path, "a") as log_file:
+        # Get the current date and time
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Write the log entry
+        log_file.write(f"[{current_time}] - {script_name} {status}\n")
+
+def run_script(script_name):
+    print(f"Running {script_name}...")
+    result = subprocess.run([sys.executable, script_name], capture_output=True, text=True)
+
+    if result.returncode == 0:
+        print(f"{script_name} completed successfully.")
+        log_script_execution(script_name, "Success")
+    else:
+        print(f"Error running {script_name}:")
+        print(result.stderr)
+        log_script_execution(script_name, "Failed")
+        sys.exit(1) # Exit the program if any script fails
+
+def main():
+    scripts = ["script1.py", "script2.py", "script3.py"]
+
+    for script in scripts:
+        run_script(script)
+        print("\n" + "-"*40 + "\n") # Separator between script outputs
+
+if __name__ == "__main__":
+    main()
+
