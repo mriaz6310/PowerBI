@@ -1,1 +1,60 @@
 
+import pandas as pd
+
+def descriptive_stats_per_ticket(dataframe):
+    # Define an empty list to store the results
+    results = []
+
+    # Group the dataframe by 'unique_ticket_id'
+    grouped = dataframe.groupby('unique_ticket_id')
+
+    # Iterate over each ticket ID and calculate the statistics
+    for ticket_id, group in grouped:
+        # Number of reopenings
+        reopenings = group[group['Event_Type'] == 'IP-Level Ticket Reopened']
+        count_reopen = reopenings['Event_Type'].count()
+        
+        # Percentage of Reopenings
+        reopening_pct = reopenings['unique_ticket_id'].nunique() / group['unique_ticket_id'].nunique()
+        
+        # Mean
+        days_mean = group['Reopen_Deltas_int'].mean()
+        
+        # Standard Deviation
+        days_sd = group['Reopen_Deltas_int'].std()
+        
+        # Median
+        days_median = group['Reopen_Deltas_int'].median()
+        
+        # Min and Max
+        reopen_min = group['Reopen_Deltas_int'].min()
+        reopen_max = group['Reopen_Deltas_int'].max()
+        
+        # Quartiles
+        lower_bound_pct = group['Reopen_Deltas_int'].quantile(0.25)
+        upper_bound_pct = group['Reopen_Deltas_int'].quantile(0.75)
+        
+        # 5th and 95th Percentiles
+        five_lower_bound_pct = group['Reopen_Deltas_int'].quantile(0.05)
+        ninety_five_upper_bound_pct = group['Reopen_Deltas_int'].quantile(0.95)
+        
+        # Append the results for this ticket ID as a dictionary
+        results.append({
+            'Ticket ID': ticket_id,
+            'Total Number of Reopenings': count_reopen,
+            '% of Reopenings': round(reopening_pct * 100, 2),
+            'Mean': round(days_mean, 2),
+            'SD': round(days_sd, 2),
+            'Median': round(days_median, 2),
+            'Min': round(reopen_min, 2),
+            'Max': round(reopen_max, 2),
+            '25th Percentile': round(lower_bound_pct, 2),
+            '75th Percentile': round(upper_bound_pct, 2),
+            '5th Percentile': round(five_lower_bound_pct, 2),
+            '95th Percentile': round(ninety_five_upper_bound_pct, 2)
+        })
+
+    # Convert the list of results into a DataFrame
+    stats_df = pd.DataFrame(results)
+    
+    return stats_df
