@@ -52,3 +52,13 @@ print(df['Event_Type'].unique())
 
 
 reopenings = df[df['Event_Type'].str.contains('IP-Level Ticket Reopened', case=False, na=False)]
+
+
+print(deltas_explode['Event_Type'].unique())
+
+
+reopenings = dataframe[dataframe['Event_Type'] == 'IP-Level Ticket Reopened']
+
+
+reopenings = dataframe[dataframe['Event_Type'].str.contains('IP-Level Ticket Reopened', case=False, na=False)]
+
