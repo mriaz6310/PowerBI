@@ -1,33 +1,29 @@
-import pandas as pd
-
 def descriptive_stats(df):
-    # Ensure 'Event_Type' and 'Reopen_Deltas_int' columns exist
-    if 'Event_Type' not in df.columns or 'Reopen_Deltas_int' not in df.columns:
-        raise ValueError("Required columns are missing in the dataframe.")
-
     # Filter reopenings
     reopenings = df[df['Event_Type'] == 'IP-Level Ticket Reopened']
 
-    # Check if there are any rows with 'IP-Level Ticket Reopened'
+    # Debugging: Check if any rows are filtered
+    print("Number of rows with 'IP-Level Ticket Reopened':", len(reopenings))
+
     if reopenings.empty:
         print("No rows with 'IP-Level Ticket Reopened' found.")
-        return pd.DataFrame()  # Return an empty DataFrame
+        return pd.DataFrame()
 
     # Group by the index (which is 'unique_ip_ticket_id') and calculate statistics
     grouped = reopenings.groupby(reopenings.index)['Reopen_Deltas_int']
 
     # Calculate statistics
     stats_df = grouped.agg([
-        'count',                      # Number of reopenings
-        'mean',                       # Mean
-        'std',                        # Standard Deviation
-        'median',                     # Median
-        'min',                        # Minimum
-        'max',                        # Maximum
-        lambda x: x.quantile(0.25),   # 25th Percentile
-        lambda x: x.quantile(0.75),   # 75th Percentile
-        lambda x: x.quantile(0.05),   # 5th Percentile
-        lambda x: x.quantile(0.95)    # 95th Percentile
+        'count',
+        'mean',
+        'std',
+        'median',
+        'min',
+        'max',
+        lambda x: x.quantile(0.25),
+        lambda x: x.quantile(0.75),
+        lambda x: x.quantile(0.05),
+        lambda x: x.quantile(0.95)
     ]).reset_index()
 
     # Rename columns
@@ -50,3 +46,9 @@ def descriptive_stats(df):
 # Usage
 desc_stats = descriptive_stats(deltas_explode)
 print(desc_stats)
+
+
+print(df['Event_Type'].unique())
+
+
+reopenings = df[df['Event_Type'].str.contains('IP-Level Ticket Reopened', case=False, na=False)]
