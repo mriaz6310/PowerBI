@@ -1,25 +1,21 @@
 import pandas as pd
 
-def descriptive_stats_per_ticket(df):
-    # Reset index if 'unique_ip_ticket_id' is an index
-    if 'unique_ip_ticket_id' in df.index.names:
-        df = df.reset_index()
-    
-    # Ensure correct column names
-    if 'Event_Type' not in df.columns or 'unique_ip_ticket_id' not in df.columns or 'Reopen_Deltas_int' not in df.columns:
-        raise ValueError("One or more required columns are missing in the dataframe.")
-    
+def descriptive_stats(df):
+    # Ensure 'Event_Type' and 'Reopen_Deltas_int' columns exist
+    if 'Event_Type' not in df.columns or 'Reopen_Deltas_int' not in df.columns:
+        raise ValueError("Required columns are missing in the dataframe.")
+
     # Filter reopenings
     reopenings = df[df['Event_Type'] == 'IP-Level Ticket Reopened']
-    
-    # Check if filtered DataFrame is empty
+
+    # Check if there are any rows with 'IP-Level Ticket Reopened'
     if reopenings.empty:
         print("No rows with 'IP-Level Ticket Reopened' found.")
         return pd.DataFrame()  # Return an empty DataFrame
-    
-    # Group by ticket ID
-    grouped = reopenings.groupby('unique_ip_ticket_id')['Reopen_Deltas_int']
-    
+
+    # Group by the index (which is 'unique_ip_ticket_id') and calculate statistics
+    grouped = reopenings.groupby(reopenings.index)['Reopen_Deltas_int']
+
     # Calculate statistics
     stats_df = grouped.agg([
         'count',                      # Number of reopenings
@@ -33,7 +29,7 @@ def descriptive_stats_per_ticket(df):
         lambda x: x.quantile(0.05),   # 5th Percentile
         lambda x: x.quantile(0.95)    # 95th Percentile
     ]).reset_index()
-    
+
     # Rename columns
     stats_df.columns = [
         'unique_ip_ticket_id',
@@ -48,9 +44,9 @@ def descriptive_stats_per_ticket(df):
         '5th Percentile',
         '95th Percentile'
     ]
-    
+
     return stats_df
 
 # Usage
-stats_per_ticket = descriptive_stats_per_ticket(deltas_explode)
-print(stats_per_ticket)
+desc_stats = descriptive_stats(deltas_explode)
+print(desc_stats)
