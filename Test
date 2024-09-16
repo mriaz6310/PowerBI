@@ -1,15 +1,29 @@
-def descriptive_stats(df):
-    # Filter reopenings
-    reopenings = df[df['Event_Type'] == 'IP-Level Ticket Reopened']
+import pandas as pd
 
+def descriptive_stats(dataframe):
+    # Ensure that 'Event_Type' and 'Reopen_Deltas_int' columns exist
+    if 'Event_Type' not in dataframe.columns or 'Reopen_Deltas_int' not in dataframe.columns:
+        raise ValueError("Required columns are missing from the dataframe.")
+    
+    # Print columns and the index name
+    print("Columns in DataFrame:", dataframe.columns)
+    print("Index name:", dataframe.index.name)
+    
+    # Filter reopenings
+    reopenings = dataframe[dataframe['Event_Type'] == 'IP-Level Ticket Reopened']
+    
     # Debugging: Check if any rows are filtered
     print("Number of rows with 'IP-Level Ticket Reopened':", len(reopenings))
 
     if reopenings.empty:
         print("No rows with 'IP-Level Ticket Reopened' found.")
         return pd.DataFrame()
+    
+    # Ensure that index is properly used
+    if isinstance(reopenings.index, pd.MultiIndex):
+        reopenings = reopenings.reset_index()
 
-    # Group by the index (which is 'unique_ip_ticket_id') and calculate statistics
+    # Group by the index and calculate statistics
     grouped = reopenings.groupby(reopenings.index)['Reopen_Deltas_int']
 
     # Calculate statistics
@@ -46,19 +60,3 @@ def descriptive_stats(df):
 # Usage
 desc_stats = descriptive_stats(deltas_explode)
 print(desc_stats)
-
-
-print(df['Event_Type'].unique())
-
-
-reopenings = df[df['Event_Type'].str.contains('IP-Level Ticket Reopened', case=False, na=False)]
-
-
-print(deltas_explode['Event_Type'].unique())
-
-
-reopenings = dataframe[dataframe['Event_Type'] == 'IP-Level Ticket Reopened']
-
-
-reopenings = dataframe[dataframe['Event_Type'].str.contains('IP-Level Ticket Reopened', case=False, na=False)]
-
