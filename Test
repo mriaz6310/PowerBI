@@ -44,3 +44,61 @@ def descriptive_stats_per_ticket(dataframe):
     results_df = pd.DataFrame(results)
     
     return results_df
+
+
+
+
+
+def descriptive_stats(dataframe):
+    # Number of reopenings
+    reopenings = dataframe[dataframe['Event_Type'] == 'IP-Level Ticket Reopened']
+    count_reopen = reopenings['Event_Type'].count()
+    print("Total Number of Reopenings:", count_reopen)
+    
+    # % of Reopenings
+    reopening_pct = reopenings['unique_ip_ticket_id'].nunique() / dataframe['unique_ip_ticket_id'].nunique()
+    print("% of Reopenings:", round(reopening_pct * 100, 2))
+    
+    # Mean
+    days_mean = dataframe['Reopen_Deltas_int'].mean()
+    print("Mean:", round(days_mean, 2))
+    
+    # Standard deviation (SD)
+    days_sd = dataframe['Reopen_Deltas_int'].std()
+    print("SD:", round(days_sd, 2))
+    
+    # Median
+    days_median = dataframe['Reopen_Deltas_int'].median()
+    print("Median:", round(days_median, 2))
+    
+    # Min and Max
+    reopen_min = dataframe['Reopen_Deltas_int'].min()
+    reopen_max = dataframe['Reopen_Deltas_int'].max()
+    print("Min:", round(reopen_min, 2))
+    print("Max:", round(reopen_max, 2))
+    
+    # Quartiles
+    lower_bound_pct = dataframe['Reopen_Deltas_int'].quantile(0.25)
+    upper_bound_pct = dataframe['Reopen_Deltas_int'].quantile(0.75)
+    print("25th Percentile:", round(lower_bound_pct, 2))
+    print("75th Percentile:", round(upper_bound_pct, 2))
+    
+    # 5th and 95th Percentiles
+    five_lower_bound_pct = dataframe['Reopen_Deltas_int'].quantile(0.05)
+    ninety_five_upper_bound_pct = dataframe['Reopen_Deltas_int'].quantile(0.95)
+    print("5th Percentile:", round(five_lower_bound_pct, 2))
+    print("95th Percentile:", round(ninety_five_upper_bound_pct, 2))
+    
+    return {
+        'count_reopen': count_reopen,
+        'reopening_pct': reopening_pct,
+        'mean': days_mean,
+        'sd': days_sd,
+        'median': days_median,
+        'min': reopen_min,
+        'max': reopen_max,
+        '25th_percentile': lower_bound_pct,
+        '75th_percentile': upper_bound_pct,
+        '5th_percentile': five_lower_bound_pct,
+        '95th_percentile': ninety_five_upper_bound_pct
+    }
