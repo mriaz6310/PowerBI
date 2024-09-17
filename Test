@@ -1,62 +1,52 @@
 import pandas as pd
+from sqlalchemy import create_engine
 
-def descriptive_stats(dataframe):
-    # Ensure that 'Event_Type' and 'Reopen_Deltas_int' columns exist
-    if 'Event_Type' not in dataframe.columns or 'Reopen_Deltas_int' not in dataframe.columns:
-        raise ValueError("Required columns are missing from the dataframe.")
-    
-    # Print columns and the index name
-    print("Columns in DataFrame:", dataframe.columns)
-    print("Index name:", dataframe.index.name)
-    
-    # Filter reopenings
-    reopenings = dataframe[dataframe['Event_Type'] == 'IP-Level Ticket Reopened']
-    
-    # Debugging: Check if any rows are filtered
-    print("Number of rows with 'IP-Level Ticket Reopened':", len(reopenings))
+# Step 1: Define your Redshift connection using SQLAlchemy
+def get_redshift_engine():
+    engine = create_engine('postgresql+psycopg2://username:password@host:port/dbname')
+    return engine
 
-    if reopenings.empty:
-        print("No rows with 'IP-Level Ticket Reopened' found.")
-        return pd.DataFrame()
-    
-    # Ensure that index is properly used
-    if isinstance(reopenings.index, pd.MultiIndex):
-        reopenings = reopenings.reset_index()
+# Step 2: Load your table data into pandas DataFrame
+def load_data_from_redshift(engine):
+    query = "SELECT * FROM tickets_data;"  # Replace with your actual query
+    df = pd.read_sql(query, engine)
+    return df
 
-    # Group by the index and calculate statistics
-    grouped = reopenings.groupby(reopenings.index)['Reopen_Deltas_int']
+# Step 3: Calculate max, mean, avg per ticket ID
+def calculate_aggregates(df):
+    aggregates = df.groupby('unique_ip_ticket_id')['Reopen_Deltas_int'].agg(
+        max_value='max',
+        mean_value='mean',
+        avg_value='mean'  # avg is usually the same as mean in statistics
+    ).reset_index()
+    return aggregates
 
-    # Calculate statistics
-    stats_df = grouped.agg([
-        'count',
-        'mean',
-        'std',
-        'median',
-        'min',
-        'max',
-        lambda x: x.quantile(0.25),
-        lambda x: x.quantile(0.75),
-        lambda x: x.quantile(0.05),
-        lambda x: x.quantile(0.95)
-    ]).reset_index()
+# Step 4: Update Redshift with the calculated values
+def update_redshift(engine, aggregates):
+    # First, merge the aggregates back into the Redshift table or use this for updating
+    for _, row in aggregates.iterrows():
+        update_query = f"""
+        UPDATE tickets_data
+        SET max_value = {row['max_value']},
+            mean_value = {row['mean_value']},
+            avg_value = {row['avg_value']}
+        WHERE unique_ip_ticket_id = '{row['unique_ip_ticket_id']}';
+        """
+        with engine.connect() as conn:
+            conn.execute(update_query)
 
-    # Rename columns
-    stats_df.columns = [
-        'unique_ip_ticket_id',
-        'Total Number of Reopenings',
-        'Mean',
-        'Standard Deviation',
-        'Median',
-        'Minimum',
-        'Maximum',
-        '25th Percentile',
-        '75th Percentile',
-        '5th Percentile',
-        '95th Percentile'
-    ]
+# Step 5: Execute the steps
+if __name__ == "__main__":
+    # Connect to Redshift
+    engine = get_redshift_engine()
 
-    return stats_df
+    # Load data
+    df = load_data_from_redshift(engine)
 
-# Usage
-desc_stats = descriptive_stats(deltas_explode)
-print(desc_stats)
+    # Calculate aggregates
+    aggregates = calculate_aggregates(df)
+
+    # Update Redshift with new columns
+    update_redshift(engine, aggregates)
+
+    print("Redshift table updated successfully!")
