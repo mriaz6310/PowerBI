@@ -50,3 +50,14 @@ if __name__ == "__main__":
     update_redshift(engine, aggregates)
 
     print("Redshift table updated successfully!")
+
+
+
+
+# Check if unique_ip_ticket_id or _ID are in the index
+print(ip_ticket_reopen_df_list.index.names)
+
+# If they are, reset the index
+if 'unique_ip_ticket_id' in ip_ticket_reopen_df_list.index.names or '_ID' in ip_ticket_reopen_df_list.index.names:
+    ip_ticket_reopen_df_list = ip_ticket_reopen_df_list.reset_index()
+
