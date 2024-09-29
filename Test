@@ -61,3 +61,76 @@ print(ip_ticket_reopen_df_list.index.names)
 if 'unique_ip_ticket_id' in ip_ticket_reopen_df_list.index.names or '_ID' in ip_ticket_reopen_df_list.index.names:
     ip_ticket_reopen_df_list = ip_ticket_reopen_df_list.reset_index()
 
+
+
+
+import subprocess
+import os
+from datetime import datetime
+
+# Paths to the actual scripts
+scripts = [
+    '/home/user/scripts/data_ingest.py',
+    '/home/user/scripts/process_data.py',
+    '/home/user/scripts/generate_report.py'
+]
+
+# Log directory
+log_directory = '/home/user/logs'  # Update to the directory where logs are stored
+
+# Master log file
+master_log_file = '/home/user/logs/master_log.txt'  # Update to your actual path
+
+# Helper function to check completion in log file content
+def check_completion(log_content):
+    last_line = log_content.strip().splitlines()[-1].lower()
+    if "completed successfully" in last_line:  # Update this line based on your success message
+        return "Success"
+    else:
+        return "Failure"
+
+# Helper function to run a script and log its completion status
+def run_script(script_name):
+    log_file = os.path.join(log_directory, f'{os.path.basename(script_name).replace(".py", "")}.log')
+    
+    # Run the script and capture its output
+    try:
+        print(f"Running {script_name}...")
+        result = subprocess.run(['python3', script_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Combine stdout and stderr to capture the entire log content
+        log_content = result.stdout + result.stderr
+        
+        # Write the output to the respective log file
+        with open(log_file, 'w') as log_output:
+            log_output.write(log_content)
+        
+        print(f"{script_name} finished with return code {result.returncode}")
+        
+        # Check the content of the log file for completion status
+        return check_completion(log_content)
+    
+    except Exception as e:
+        return f"Error running {script_name}: {e}"
+
+# Create or open the master log file for writing
+with open(master_log_file, 'w') as master_log:
+    # Write header for the master log
+    master_log.write("Script Name | Status       | Completion Time\n")
+    master_log.write("-" * 50 + "\n")
+
+    # Loop through each script and run it
+    for script in scripts:
+        start_time = datetime.now()
+        
+        # Run the script and get completion status
+        status = run_script(script)
+        
+        end_time = datetime.now()
+        completion_time = (end_time - start_time).total_seconds()
+
+        # Log the result in the master log
+        master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
+        print(f"Logged result for {script} in master log.")
+
+
