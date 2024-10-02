@@ -124,3 +124,90 @@ if missing_files:
     raise FileNotFoundError(f"Files not found: {missing_files}")
 else:
     print("All script files exist and are ready for execution.")
+
+
+
+
+
+import subprocess
+import os
+from datetime import datetime
+
+# Path to your Python scripts
+scripts = [
+    '/home/user/SageMaker/Production/Pipelines/pipeline/dashboard/src/temp-dashboard-product-refresh-pipe-py.py'
+]
+
+# Log directory
+log_directory = '/home/user/logs'  # Update this to the correct path
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)  # Create log directory if it doesn't exist
+
+# Master log file
+master_log_file = '/home/user/logs/master_log.txt'
+
+# Path to Conda environment activation script
+conda_bin_path = '/home/user/SageMaker/custom-conda/miniconda/bin/activate'
+conda_env_name = 'ABC_PROD'
+
+# Check if all the script files exist
+missing_files = [script for script in scripts if not os.path.exists(script)]
+
+if missing_files:
+    print(f"Error: The following files do not exist: {missing_files}")
+    raise FileNotFoundError(f"Files not found: {missing_files}")
+else:
+    print("All script files exist and are ready for execution.")
+
+def run_python_script_with_conda(script_name):
+    # Log file for each individual script
+    log_file = os.path.join(log_directory, f'{os.path.basename(script_name).replace(".py", "")}.log')
+
+    try:
+        print(f"Running {script_name}...")
+
+        # Run the Python script with Conda environment activation in a bash shell
+        result = subprocess.run(
+            ['bash', '-c', f'source {conda_bin_path} && conda activate {conda_env_name} && python3 {script_name}'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+
+        # Write the script output to a log file
+        with open(log_file, 'w') as log_output:
+            log_output.write(result.stdout + result.stderr)
+
+        print(f"{script_name} finished with return code {result.returncode}")
+
+        # Return the return code for success/failure
+        return result.returncode
+
+    except Exception as e:
+        print(f"Error running {script_name}: {e}")
+        return None
+
+# Write to master log
+with open(master_log_file, 'w') as master_log:
+    master_log.write("Script Name   | Status       | Completion Time\n")
+    master_log.write("-" * 50 + "\n")
+
+    for script in scripts:
+        start_time = datetime.now()
+
+        # Run each Python script with environment activation
+        return_code = run_python_script_with_conda(script)
+
+        end_time = datetime.now()
+        completion_time = (end_time - start_time).total_seconds()
+
+        # Determine success or failure
+        if return_code == 0:
+            status = "Success"
+        elif return_code is not None:
+            status = f"Failed (Code: {return_code})"
+        else:
+            status = "Error Occurred"
+
+        # Log result in master log
+        master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
+        print(f"Logged result for {script} in master log.")
+
