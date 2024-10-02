@@ -61,3 +61,54 @@ with open(master_log_file, 'w') as master_log:
         # Log result in master log
         master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
         print(f"Logged result for {script} in master log.")
+
+
+
+
+
+
+def run_python_script_with_conda(script_name):
+    log_file = os.path.join(log_directory, f'{os.path.basename(script_name).replace(".py", "")}.log')
+
+    try:
+        print(f"Running {script_name}...")
+
+        # Run the Python script with Conda environment activation in a bash shell
+        result = subprocess.run(
+            ['bash', '-c', f'source {conda_bin_path} && conda activate {conda_env_name} && python3 {script_name}'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+
+        # Write the script output to a log file
+        with open(log_file, 'w') as log_output:
+            log_output.write(result.stdout + result.stderr)
+
+        print(f"{script_name} finished with return code {result.returncode}")
+
+        # Return the return code for success/failure
+        return result.returncode
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+# Write to master log
+with open(master_log_file, 'w') as master_log:
+    master_log.write("Script Name   | Status       | Completion Time\n")
+    master_log.write("-" * 50 + "\n")
+
+    for script in scripts:
+        start_time = datetime.now()
+
+        # Run each Python script with environment activation
+        return_code = run_python_script_with_conda(script)
+
+        end_time = datetime.now()
+        completion_time = (end_time - start_time).total_seconds()
+
+        # Determine success or failure
+        status = "Success" if return_code == 0 else f"Failed (Code: {return_code})"
+
+        # Log result in master log
+        master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
+        print(f"Logged result for {script} in master log.")
