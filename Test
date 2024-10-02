@@ -67,3 +67,67 @@ with open(master_log_file, 'w') as master_log:
             print(f"Error during execution of script {script}: {e}")
             master_log.write(f"{os.path.basename(script)} | Error Occurred | N/A\n")
             continue  # Continue to the next script if one fails
+
+
+
+
+
+
+
+
+# Ensure all script paths are correct and the files exist
+missing_files = [script for script in scripts if not os.path.isfile(script)]
+
+if missing_files:
+    print(f"Error: The following files do not exist: {missing_files}")
+    raise FileNotFoundError(f"Files not found: {missing_files}")
+else:
+    print("All script files exist and are ready for execution.")
+
+def run_python_script_with_conda(script_name):
+    try:
+        print(f"Running {script_name}...")
+
+        # Build the bash command with proper paths
+        bash_command = f'source "{conda_bin_path}" && conda activate {conda_env_name} && python3 "{script_name}"'
+        
+        # Run the Python script with Conda environment activation in a bash shell
+        result = subprocess.run(
+            ['bash', '-c', bash_command],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+
+        # Print the output and return code
+        print(result.stdout)
+        if result.stderr:
+            print(f"Error in {script_name}: {result.stderr}")
+        
+        print(f"{script_name} finished with return code {result.returncode}")
+
+        return result.returncode
+
+    except Exception as e:
+        print(f"Error running {script_name}: {e}")
+        return None
+
+# Run all scripts without logging to a file, just print results
+for script in scripts:
+    start_time = datetime.now()
+
+    try:
+        # Run each Python script with Conda environment activation
+        return_code = run_python_script_with_conda(script)
+
+        end_time = datetime.now()
+        completion_time = (end_time - start_time).total_seconds()
+
+        # Determine success or failure
+        if return_code == 0:
+            print(f"{script} completed successfully in {completion_time:.2f} seconds.")
+        elif return_code is not None:
+            print(f"{script} failed with code {return_code}.")
+        else:
+            print(f"An error occurred while running {script}.")
+
+    except Exception as e:
+        print(f"Error during execution of script {script}: {e}")
