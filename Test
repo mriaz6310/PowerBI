@@ -1,136 +1,63 @@
-import pandas as pd
-from sqlalchemy import create_engine
-
-# Step 1: Define your Redshift connection using SQLAlchemy
-def get_redshift_engine():
-    engine = create_engine('postgresql+psycopg2://username:password@host:port/dbname')
-    return engine
-
-# Step 2: Load your table data into pandas DataFrame
-def load_data_from_redshift(engine):
-    query = "SELECT * FROM tickets_data;"  # Replace with your actual query
-    df = pd.read_sql(query, engine)
-    return df
-
-# Step 3: Calculate max, mean, avg per ticket ID
-def calculate_aggregates(df):
-    aggregates = df.groupby('unique_ip_ticket_id')['Reopen_Deltas_int'].agg(
-        max_value='max',
-        mean_value='mean',
-        avg_value='mean'  # avg is usually the same as mean in statistics
-    ).reset_index()
-    return aggregates
-
-# Step 4: Update Redshift with the calculated values
-def update_redshift(engine, aggregates):
-    # First, merge the aggregates back into the Redshift table or use this for updating
-    for _, row in aggregates.iterrows():
-        update_query = f"""
-        UPDATE tickets_data
-        SET max_value = {row['max_value']},
-            mean_value = {row['mean_value']},
-            avg_value = {row['avg_value']}
-        WHERE unique_ip_ticket_id = '{row['unique_ip_ticket_id']}';
-        """
-        with engine.connect() as conn:
-            conn.execute(update_query)
-
-# Step 5: Execute the steps
-if __name__ == "__main__":
-    # Connect to Redshift
-    engine = get_redshift_engine()
-
-    # Load data
-    df = load_data_from_redshift(engine)
-
-    # Calculate aggregates
-    aggregates = calculate_aggregates(df)
-
-    # Update Redshift with new columns
-    update_redshift(engine, aggregates)
-
-    print("Redshift table updated successfully!")
-
-
-
-
-# Check if unique_ip_ticket_id or _ID are in the index
-print(ip_ticket_reopen_df_list.index.names)
-
-# If they are, reset the index
-if 'unique_ip_ticket_id' in ip_ticket_reopen_df_list.index.names or '_ID' in ip_ticket_reopen_df_list.index.names:
-    ip_ticket_reopen_df_list = ip_ticket_reopen_df_list.reset_index()
-
-
-
-
 import subprocess
 import os
 from datetime import datetime
 
-# Paths to the actual scripts
+# Path to your Python script
 scripts = [
-    '/home/user/scripts/data_ingest.py',
-    '/home/user/scripts/process_data.py',
-    '/home/user/scripts/generate_report.py'
+    '/home/user/SageMaker/Production/Pipelines/pipeline/dashboard/src/temp-dashboard-product-refresh-pipe-py.py'
 ]
 
 # Log directory
-log_directory = '/home/user/logs'  # Update to the directory where logs are stored
+log_directory = '/home/user/logs'  # Update to the directory where you want to store logs
 
 # Master log file
-master_log_file = '/home/user/logs/master_log.txt'  # Update to your actual path
+master_log_file = '/home/user/logs/master_log.txt'
 
-# Helper function to check completion in log file content
-def check_completion(log_content):
-    last_line = log_content.strip().splitlines()[-1].lower()
-    if "completed successfully" in last_line:  # Update this line based on your success message
-        return "Success"
-    else:
-        return "Failure"
+# Path to your Conda environment and environment name
+conda_bin_path = '/home/user/SageMaker/custom-conda/miniconda/bin/activate'
+conda_env_name = 'ABC_PROD'
 
-# Helper function to run a script and log its completion status
-def run_script(script_name):
+def run_python_script_with_conda(script_name):
     log_file = os.path.join(log_directory, f'{os.path.basename(script_name).replace(".py", "")}.log')
     
-    # Run the script and capture its output
     try:
         print(f"Running {script_name}...")
-        result = subprocess.run(['python3', script_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
-        # Combine stdout and stderr to capture the entire log content
-        log_content = result.stdout + result.stderr
+        # Run the Python script within the Conda environment using bash
+        result = subprocess.run(
+            ['bash', '-c', f'source {conda_bin_path} && conda activate {conda_env_name} && python3 {script_name}'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
         
-        # Write the output to the respective log file
+        # Write the script output to a log file
         with open(log_file, 'w') as log_output:
-            log_output.write(log_content)
+            log_output.write(result.stdout + result.stderr)
         
         print(f"{script_name} finished with return code {result.returncode}")
         
-        # Check the content of the log file for completion status
-        return check_completion(log_content)
+        # Return the return code for success/failure
+        return result.returncode
     
     except Exception as e:
-        return f"Error running {script_name}: {e}"
+        return f"Error: {e}"
 
-# Create or open the master log file for writing
+# Writing the master log
 with open(master_log_file, 'w') as master_log:
-    # Write header for the master log
-    master_log.write("Script Name | Status       | Completion Time\n")
+    master_log.write("Script Name   | Status       | Completion Time\n")
     master_log.write("-" * 50 + "\n")
 
-    # Loop through each script and run it
     for script in scripts:
         start_time = datetime.now()
         
-        # Run the script and get completion status
-        status = run_script(script)
+        # Run each Python script with Conda environment activation
+        return_code = run_python_script_with_conda(script)
         
         end_time = datetime.now()
         completion_time = (end_time - start_time).total_seconds()
-
-        # Log the result in the master log
+        
+        # Determine success or failure
+        status = "Success" if return_code == 0 else f"Failed (Code: {return_code})"
+        
+        # Log result in master log
         master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
         print(f"Logged result for {script} in master log.")
-
-
