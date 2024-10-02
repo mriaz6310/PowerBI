@@ -112,3 +112,15 @@ with open(master_log_file, 'w') as master_log:
         # Log result in master log
         master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
         print(f"Logged result for {script} in master log.")
+
+
+
+# Check if all the script files exist
+missing_files = [script for script in scripts if not os.path.exists(script)]
+
+if missing_files:
+    print(f"Error: The following files do not exist: {missing_files}")
+    # Optionally, raise an error or stop the execution here if needed
+    raise FileNotFoundError(f"Files not found: {missing_files}")
+else:
+    print("All script files exist and are ready for execution.")
