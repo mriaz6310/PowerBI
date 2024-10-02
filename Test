@@ -44,20 +44,26 @@ with open(master_log_file, 'w') as master_log:
     for script in scripts:
         start_time = datetime.now()
 
-        # Run each Python script with environment activation
-        return_code = run_python_script_with_conda(script)
+        try:
+            # Run each Python script with environment activation
+            return_code = run_python_script_with_conda(script)
 
-        end_time = datetime.now()
-        completion_time = (end_time - start_time).total_seconds()
+            end_time = datetime.now()
+            completion_time = (end_time - start_time).total_seconds()
 
-        # Determine success or failure
-        if return_code == 0:
-            status = "Success"
-        elif return_code is not None:
-            status = f"Failed (Code: {return_code})"
-        else:
-            status = "Error Occurred"
+            # Determine success or failure
+            if return_code == 0:
+                status = "Success"
+            elif return_code is not None:
+                status = f"Failed (Code: {return_code})"
+            else:
+                status = "Error Occurred"
 
-        # Log result in master log
-        master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
-        print(f"Logged result for {script} in master log.")
+            # Log result in master log
+            master_log.write(f"{os.path.basename(script)} | {status:<12} | {completion_time:.2f} seconds\n")
+            print(f"Logged result for {script} in master log.")
+
+        except Exception as e:
+            print(f"Error during execution of script {script}: {e}")
+            master_log.write(f"{os.path.basename(script)} | Error Occurred | N/A\n")
+            continue  # Continue to the next script if one fails
