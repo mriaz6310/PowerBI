@@ -73,4 +73,29 @@ except s3_client.exceptions.ClientError as e:
 
 
 
+import boto3
+
+# Define the file path in SageMaker and the S3 URL
+sagemaker_file_path = "/path/to/your/datafile.xlsx"  # Replace with the actual file path in SageMaker
+s3_url = "s3://your-s3-bucket-name/desired/path/in/bucket/datafile.xlsx"  # Replace with your S3 URL
+
+# Parse the bucket and key from the S3 URL
+s3_bucket_name = s3_url.split('/')[2]
+s3_key = '/'.join(s3_url.split('/')[3:])
+
+# Initialize the S3 client
+s3_client = boto3.client('s3')
+
+try:
+    # Upload file to S3
+    s3_client.upload_file(sagemaker_file_path, s3_bucket_name, s3_key)
+    print("File uploaded successfully to S3!")
+except Exception as e:
+    print(f"An error occurred: {e}")
+
+
+
+
+
+
 
