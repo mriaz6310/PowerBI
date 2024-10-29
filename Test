@@ -46,3 +46,19 @@ except Exception as e:
     print(f"An error occurred: {e}")
 
 
+
+
+import os
+
+sagemaker_file_path = "/path/to/your/datafile.xlsx"  # Update to your actual file path
+
+if os.path.exists(sagemaker_file_path):
+    print("File found in SageMaker instance.")
+else:
+    print("File not found at the specified path.")
+
+
+
+
+
+
