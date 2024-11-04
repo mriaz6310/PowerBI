@@ -97,5 +97,89 @@ except Exception as e:
 
 
 
+import os
+import subprocess
+from datetime import datetime
+
+# Ensure all script paths are correct and files exist
+missing_files = [script for script in scripts if not os.path.isfile(script)]
+if missing_files:
+    print(f"Error: The following files do not exist: {missing_files}")
+    raise FileNotFoundError(f"Files not found: {missing_files}")
+else:
+    print("All script files exist and are ready for execution.")
+
+# Function to run a Python script within a Conda environment
+def run_python_script_with_conda(script_name, conda_bin_path, conda_env_name, log_directory):
+    # Define a log file for each individual script
+    log_file = os.path.join(log_directory, f"{os.path.basename(script_name).replace('.py', '')}.log")
+    
+    try:
+        print(f"Starting {script_name}...")
+        # Build the bash command with proper paths
+        bash_command = f'source "{conda_bin_path}" && conda activate {conda_env_name} && python "{script_name}"'
+        
+        # Run the Python script with Conda environment activation in a bash shell
+        result = subprocess.run(
+            ['bash', '-c', bash_command], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            text=True
+        )
+        
+        # Write the script output to a log file
+        with open(log_file, 'w') as log_output:
+            log_output.write(result.stdout)
+            log_output.write(result.stderr)
+        
+        # Print and return the result
+        print(f"{script_name} finished with return code {result.returncode}")
+        return result.returncode
+    except Exception as e:
+        print(f"Error running {script_name}: {e}")
+        return None
+
+# Append to master log file and execute scripts
+with open("master_log.log", "a") as master_log:
+    master_log.write("Script Name | Status       | Start Time           | End Time             | Completion Time (seconds) | Completion Timestamp\n")
+    master_log.write("_" * 120 + "\n")
+
+    # Run scripts sequentially
+    for i, script in enumerate(scripts[:8]):
+        start_time = datetime.now()
+        start_timestamp = start_time.strftime('%Y-%m-%d %H:%M:%S')
+        
+        try:
+            # Log the start time
+            print(f"Script {script} started at {start_timestamp}")
+            
+            # Run each Python script with Conda environment activation
+            return_code = run_python_script_with_conda(script, conda_bin_path, conda_env_name, log_directory)
+            end_time = datetime.now()
+            end_timestamp = end_time.strftime('%Y-%m-%d %H:%M:%S')
+            completion_time = (end_time - start_time).total_seconds()
+            
+            # Determine success or failure
+            if return_code == 0:
+                status = "Success"
+            elif return_code is not None:
+                status = f"Failed (Code: {return_code})"
+            else:
+                status = "Error Occurred"
+            
+            # Log result in master log with timestamps
+            master_log.write(f"{os.path.basename(script)} | {status:<12} | {start_timestamp} | {end_timestamp} | {completion_time:.2f} seconds | {end_timestamp}\n")
+            print(f"Logged result for {script} in master log with completion at {end_timestamp}.")
+        
+        except Exception as e:
+            print(f"Error during execution of script {script}: {e}")
+            error_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            master_log.write(f"{os.path.basename(script)} | Error Occurred | {start_timestamp} | N/A | N/A | {error_timestamp}\n")
+
+
+
+
+
+
 
 
