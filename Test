@@ -185,8 +185,101 @@ with open("master_log.log", "a") as master_log:
 
 
 
+# Ensure all script paths are correct and files exist
+missing_files = [script for script in scripts if not os.path.isfile(script)]
+if missing_files:
+    print(f"Error: The following files do not exist: {missing_files}")
+    raise FileNotFoundError(f"Files not found: {missing_files}")
+else:
+    print("All script files exist and are ready for execution.")
 
-https://sam.gov/entity-registration
+# Function to run a Python script within a Conda environment
+def run_python_script_with_conda(script_name, conda_bin_path, conda_env_name):
+    try:
+        print(f"Starting {script_name}...")
+        # Bash command to activate Conda environment and run the script
+        bash_command = f'source "{conda_bin_path}" && conda activate {conda_env_name} && python "{script_name}"'
+
+        # Run the command
+        result = subprocess.run(
+            ['bash', '-c', bash_command],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        # Check for log file existence in the log directory
+        log_file = os.path.join(log_directory, f"{os.path.basename(script_name).replace('.py', '')}.log")
+        if os.path.isfile(log_file):
+            print(f"Existing log file found for {script_name}: {log_file}")
+        else:
+            # Write script output to a new log file if not already created
+            with open(log_file, 'w') as log_output:
+                log_output.write(result.stdout)
+                log_output.write(result.stderr)
+
+        print(f"{script_name} finished with return code {result.returncode}")
+        return result.returncode
+    except Exception as e:
+        print(f"Error running {script_name}: {e}")
+        return None
+
+# Create a list to hold log data
+log_data = []
+
+# Run scripts sequentially and log details
+for script in scripts:
+    start_time = datetime.now()
+    start_timestamp = start_time.strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        # Run each Python script with Conda environment
+        return_code = run_python_script_with_conda(script, conda_bin_path, conda_env_name)
+        end_time = datetime.now()
+        end_timestamp = end_time.strftime('%Y-%m-%d %H:%M:%S')
+        completion_time = (end_time - start_time).total_seconds()
+
+        # Determine status
+        status = "Success" if return_code == 0 else f"Failed (Code: {return_code})"
+
+        # Append log data
+        log_data.append({
+            "Script Name": os.path.basename(script),
+            "Status": status,
+            "Start Time": start_timestamp,
+            "End Time": end_timestamp,
+            "Completion Time (seconds)": completion_time
+        })
+        print(f"Logged result for {script} with completion at {end_timestamp}.")
+
+    except Exception as e:
+        print(f"Error during execution of {script}: {e}")
+        error_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_data.append({
+            "Script Name": os.path.basename(script),
+            "Status": "Error Occurred",
+            "Start Time": start_timestamp,
+            "End Time": "N/A",
+            "Completion Time (seconds)": "N/A"
+        })
+
+# Create a DataFrame from the log data
+log_df = pd.DataFrame(log_data)
+
+# Save the DataFrame to an Excel file
+excel_file = "master_log.xlsx"
+log_df.to_excel(excel_file, index=False)
+
+# Upload the Excel file to S3
+s3_client = boto3.client('s3')
+bucket_name = 'your-s3-bucket-name'  # Replace with your bucket name
+s3_key = f"logs/{excel_file}"  # Path in the S3 bucket
+
+try:
+    s3_client.upload_file(excel_file, bucket_name, s3_key)
+    print(f"Successfully uploaded {excel_file} to s3://{bucket_name}/{s3_key}")
+except Exception as e:
+    print(f"Error uploading {excel_file} to S3: {e}")
 
 
 
