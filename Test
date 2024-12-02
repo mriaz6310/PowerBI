@@ -285,6 +285,31 @@ except Exception as e:
 
 
 
+import numpy as np
+
+# Convert each timedelta object to seconds before applying mean, median, or average calculations
+ip_ticket_reopen_df_list['ticketmean'] = ip_ticket_reopen_df_list['Reopen_Deltas'].apply(
+    lambda x: np.mean([delta.total_seconds() for delta in x]) / (60 * 60 * 24)
+)
+
+ip_ticket_reopen_df_list['ticketmedian'] = ip_ticket_reopen_df_list['Reopen_Deltas'].apply(
+    lambda x: np.median([delta.total_seconds() for delta in x]) / (60 * 60 * 24)
+)
+
+ip_ticket_reopen_df_list['ticketaverage'] = ip_ticket_reopen_df_list['Reopen_Deltas'].apply(
+    lambda x: np.mean([delta.total_seconds() for delta in x]) / (60 * 60 * 24)
+)
+
+# Explode the DataFrame (if needed)
+deltas_explode = ip_ticket_reopen_df_list.explode(['ticketmean', 'ticketmedian', 'ticketaverage'])
+
+# Final DataFrame
+print(deltas_explode)
+
+
+
+
+
 
 
 
