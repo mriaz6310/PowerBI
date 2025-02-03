@@ -323,12 +323,13 @@ WHERE grantee NOT IN ('rdsdb', 'awsuser');
 
 
 SELECT 
-    'UNLOAD (''SELECT * FROM "' || table_schema || '"."' || table_name || '"''') 
-    TO ''s3://your-bucket-name/' || table_schema || '/' || table_name || '_data_'' 
-    IAM_ROLE ''arn:aws:iam::your-account-id:role/your-redshift-role'' 
-    FORMAT AS PARQUET;' 
+    'UNLOAD (''' || 'SELECT * FROM "' || table_schema || '"."' || table_name || '"''' || ') 
+    TO '''s3://your-bucket-name/' || table_schema || '/' || table_name || '_data_''' 
+    IAM_ROLE '''arn:aws:iam::your-account-id:role/your-redshift-role''' 
+    FORMAT AS PARQUET;'
 FROM information_schema.tables 
 WHERE table_schema = 'test';
+
 
 
 
