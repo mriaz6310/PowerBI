@@ -308,6 +308,33 @@ print(deltas_explode)
 
 
 
+SELECT 'UNLOAD (''SELECT * FROM ' || schemaname || '.' || tablename || ''') 
+TO ''s3://your-bucket-name/' || schemaname || '/' || tablename || '_data_'' 
+IAM_ROLE ''arn:aws:iam::your-account-id:role/your-redshift-role'' 
+FORMAT AS PARQUET;' 
+FROM information_schema.tables 
+WHERE table_schema = 'your_schema';
+
+
+SELECT 'COPY ' || table_name || ' FROM ''s3://your-bucket-name/' || table_schema || '/' || table_name || '_data_'' 
+IAM_ROLE ''arn:aws:iam::your-account-id:role/your-redshift-role'' 
+FORMAT AS PARQUET;'
+FROM information_schema.tables 
+WHERE table_schema = 'your_schema';
+
+
+
+SELECT usename, usecreatedb, usesuper, valuntil 
+FROM pg_user;
+
+SELECT grantee, privilege_type, table_schema, table_name 
+FROM information_schema.role_table_grants 
+WHERE grantee NOT IN ('rdsdb', 'awsuser');
+
+
+
+
+
 
 
 
