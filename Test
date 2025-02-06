@@ -407,6 +407,14 @@ FROM information_schema.role_table_grants;
 
 
 
+GRANT USAGE ON SCHEMA your_schema TO your_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA your_schema TO your_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA your_schema 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO your_user;
+
+
+
+
 
 
 
