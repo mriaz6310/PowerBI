@@ -337,6 +337,81 @@ WHERE table_schema = 'test';
 
 
 
+Step 1: Extract Users and Their Roles from the Source Cluster
+
+Run the following queries in Redshift Query Editor on the source cluster to get a list of users and their associated privileges.
+
+1. Get List of Users
+SELECT usename, usecreatedb, usesuper, valuntil 
+FROM pg_user;
+2. Get User Roles and Privileges
+SELECT grantee, privilege_type, table_schema, table_name 
+FROM information_schema.role_table_grants 
+WHERE grantee NOT IN ('rdsdb', 'awsuser');
+3. Get User Groups (if using Group Roles)
+SELECT * FROM pg_group;
+Save these outputs, as you’ll need them to recreate users, roles, and privileges on the new cluster.
+
+Step 2: Generate CREATE USER Statements for the New Cluster
+
+For each user, create a corresponding CREATE USER statement:
+
+CREATE USER user_name WITH PASSWORD 'your-secure-password' 
+[ CREATEUSER | NOCREATEUSER ] [ SUPERUSER | NOSUPERUSER ] 
+[ VALID UNTIL 'infinity' ];
+Use the extracted user attributes from Step 1.
+Passwords are not extractable, so you'll need to reset them.
+Step 3: Generate GRANT Statements for Table-Level Access
+
+For each table privilege, generate the corresponding GRANT statement:
+
+GRANT SELECT, INSERT, UPDATE, DELETE 
+ON schema_name.table_name 
+TO user_name;
+If users were assigned to groups, use:
+
+GRANT user_group TO user_name;
+Step 4: Transfer Users and Permissions to the New Cluster
+
+Connect to the new Redshift cluster.
+Run the CREATE USER statements.
+Execute the GRANT statements to restore user access.
+Step 5: Transfer IAM Roles (if used for authentication)
+
+If users authenticated using IAM roles, attach the same roles in the new cluster:
+
+In AWS IAM Console, navigate to Roles.
+Find and attach the IAM role used in the old Redshift cluster to the new cluster.
+Run:
+ALTER USER user_name 
+ADD IAM_ROLE 'arn:aws:iam::your-account-id:role/your-redshift-role';
+Step 6: Validate User Migration
+
+Run SELECT * FROM pg_user; on the new cluster to verify user creation.
+Check SELECT * FROM information_schema.role_table_grants; to confirm access is restored.
+Automation: Script to Generate SQL for Users and Grants
+Run this in the source cluster to auto-generate SQL statements:
+
+SELECT 'CREATE USER ' || usename || 
+       ' WITH PASSWORD ''your-secure-password'' ' || 
+       CASE WHEN usesuper THEN 'SUPERUSER' ELSE 'NOSUPERUSER' END || 
+       ';'
+FROM pg_user;
+And for table privileges:
+
+SELECT 'GRANT ' || privilege_type || 
+       ' ON ' || table_schema || '.' || table_name || 
+       ' TO ' || grantee || ';' 
+FROM information_schema.role_table_grants;
+
+
+
+
+
+
+
+
+
 
 
 
