@@ -414,6 +414,20 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO your_user;
 
 
 
+CREATE SCHEMA IF NOT EXISTS your_schema;
+
+SELECT ddl 
+FROM admin.v_generate_tbl_ddl
+WHERE schemaname = 'your_schema';
+
+
+SELECT 'CREATE TABLE "' || table_schema || '"."' || table_name || '" AS SELECT * FROM "' || table_schema || '"."' || table_name || '" LIMIT 0;'
+FROM information_schema.tables
+WHERE table_schema = 'your_schema';
+
+
+
+
 
 
 
