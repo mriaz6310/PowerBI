@@ -429,6 +429,24 @@ WHERE table_schema = 'your_schema';
 
 
 
+SELECT 'TRUNCATE TABLE "' || table_schema || '"."' || table_name || '" RESTART IDENTITY;'
+FROM information_schema.tables
+WHERE table_schema = 'test';
+
+
+
+SELECT 
+    'UNLOAD (''SELECT * FROM "' || table_schema || '"."' || table_name || '"''') 
+    TO ''s3://your-bucket-name/' || table_schema || '/' || table_name || '_data_'' 
+    IAM_ROLE ''arn:aws:iam::your-account-id:role/your-redshift-role'' 
+    FORMAT AS PARQUET 
+    ALLOWOVERWRITE;'
+FROM information_schema.tables 
+WHERE table_schema = 'test';
+
+
+
+
 
 
 
