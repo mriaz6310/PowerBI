@@ -447,18 +447,26 @@ WHERE table_schema = 'test';
 
 
 
-SELECT 
-    'CREATE TABLE sales.' || tablename || ' (' || 
-    listagg(column || ' ' || type, ', ') WITHIN GROUP (ORDER BY ordinal_position) || ');'
+SELECT 'CREATE TABLE sales.' || tablename || ' (' || 
+       STRING_AGG(column || ' ' || type, ', ') || ');'
 FROM (
     SELECT tablename, column, type, ordinal_position 
     FROM svv_columns 
-    WHERE schema = 'sales'
+    WHERE table_schema = 'sales'
+    ORDER BY tablename, ordinal_position
 ) t
 GROUP BY tablename;
 
 
-SELECT ddl FROM admin.v_generate_tbl_ddl WHERE schemaname = 'sales';
+SELECT 'CREATE TABLE analytics.' || tablename || ' (' || 
+       STRING_AGG(column || ' ' || type, ', ') || ');'
+FROM (
+    SELECT tablename, column, type, ordinal_position 
+    FROM svv_columns 
+    WHERE table_schema = 'analytics'
+    ORDER BY tablename, ordinal_position
+) t
+GROUP BY tablename;
 
 
 
