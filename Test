@@ -486,9 +486,23 @@ restore
 aws s3 cp s3://your-bucket-name/backup.sql.gz - | gunzip | psql -U your_user -d your_database
 
 
+
 pg_dump -U postgres -h localhost -p 5432 -d sales_db | aws s3 cp - s3://my-s3-backups/sales_db_backup.sql
 
 
+pg_dump -U postgres -h localhost -p 5432 -d sales_db --compress=9 | aws s3 cp - s3://my-s3-backups/sales_db_backup.sql.gz
+
+
+
+parallel:
+pg_dump -U postgres -h localhost -p 5432 -d sales_db --format=directory --jobs=4 -f sales_db_backup
+aws s3 cp sales_db_backup s3://my-s3-backups/ --recursive
+
+
+auto
+pg_dump -U postgres -h localhost -p 5432 -d sales_db --format=custom | split -b 500M - sales_db_backup_part_
+
+for file in sales_db_backup_part_*; do aws s3 cp "$file" s3://my-s3-backups/; done
 
 
 
