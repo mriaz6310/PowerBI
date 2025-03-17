@@ -512,6 +512,9 @@ pg_dump -U postgres -h localhost -p 5432 -d sales_db | Out-String | aws s3 cp - 
 pg_dump -U postgres -h localhost -p 5432 -d sales_db --format=custom | aws s3 cp - s3://my-s3-backups/sales_db_backup.dump
 
 
+pg_dump -U postgres -h localhost -p 5432 -d sales_db | gzip | aws s3 cp - s3://your-bucket-name/sales_db_backup.gz
+
+
 
 
 
