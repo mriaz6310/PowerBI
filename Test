@@ -479,6 +479,15 @@ WHERE table_schema = 'your_schema'
 GROUP BY table_schema, table_name;
 
 
+copy
+pg_dump -U your_user -d your_database | gzip | aws s3 cp - s3://your-bucket-name/backup.sql.gz
+
+restore
+aws s3 cp s3://your-bucket-name/backup.sql.gz - | gunzip | psql -U your_user -d your_database
+
+
+
+
 
 
 
