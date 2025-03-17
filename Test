@@ -507,6 +507,14 @@ for file in sales_db_backup_part_*; do aws s3 cp "$file" s3://my-s3-backups/; do
 
 
 
+pg_dump -U postgres -h localhost -p 5432 -d sales_db | Out-String | aws s3 cp - s3://my-s3-backups/sales_db_backup.sql
+
+pg_dump -U postgres -h localhost -p 5432 -d sales_db | Out-String | aws s3 cp - s3://my-s3-backups/sales_db_backup.sql
+
+
+
+
+
 
 
 
