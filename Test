@@ -486,6 +486,9 @@ restore
 aws s3 cp s3://your-bucket-name/backup.sql.gz - | gunzip | psql -U your_user -d your_database
 
 
+pg_dump -U postgres -h localhost -p 5432 -d sales_db | aws s3 cp - s3://my-s3-backups/sales_db_backup.sql
+
+
 
 
 
