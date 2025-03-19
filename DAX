@@ -71,5 +71,9 @@ with open(master_log_file, 'w') as master_log:
 aws rds describe-db-instances --db-instance-identifier my-prod-db --query "DBInstances[0].AllocatedStorage"
 
 
+aws rds describe-db-instances --query "DBInstances[?Endpoint.Address=='your-db-hostname'].DBInstanceIdentifier" --output text
+
+
+
 
 
