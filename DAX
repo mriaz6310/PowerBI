@@ -73,6 +73,9 @@ aws rds describe-db-instances --db-instance-identifier my-prod-db --query "DBIns
 
 aws rds describe-db-instances --query "DBInstances[?Endpoint.Address=='your-db-hostname'].DBInstanceIdentifier" --output text
 
+aws rds describe-db-instances --db-instance-identifier my-prod-db
+
+
 
 
 
