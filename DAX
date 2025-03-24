@@ -80,6 +80,7 @@ Invoke-Command -ComputerName ServerB -ScriptBlock {
 } -Credential (Get-Credential)
 
 
+ssh user@ServerB "pg_dump -h localhost -U username -F c dbname > /path/to/save/db_backup.dump"
 
 
 
