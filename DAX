@@ -83,4 +83,12 @@ Invoke-Command -ComputerName ServerB -ScriptBlock {
 ssh user@ServerB "pg_dump -h localhost -U username -F c dbname > /path/to/save/db_backup.dump"
 
 
+# Check if OpenSSH Client is installed
+Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Client*'
+
+# If not installed, install it
+Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+
+
+
 
