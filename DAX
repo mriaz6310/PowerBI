@@ -75,6 +75,9 @@ aws rds describe-db-instances --query "DBInstances[?Endpoint.Address=='your-db-h
 
 aws rds describe-db-instances --db-instance-identifier my-prod-db
 
+Invoke-Command -ComputerName ServerB -ScriptBlock {
+    pg_dump -h localhost -U username -F c dbname > "C:\path\to\save\db_backup.dump"
+} -Credential (Get-Credential)
 
 
 
