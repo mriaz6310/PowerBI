@@ -92,3 +92,26 @@ Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
 
 
 
+
+Pgdump users
+pg_dumpall -U my_user -h my-db-host.example.com -p 5432 --globals-only > users_roles.sql :Users
+
+All tables except one
+pg_dump -U my_user -h my-db-host.example.com -p 5432 -d my_database -F c -T large_table -f backup.dump
+
+Single table
+pg_dump -U my_user -h my-db-host.example.com -p 5432 -d my_database -t large_table -F c -f large_table.dump
+ The above will dump a table separately 
+
+Restore users global
+psql -U postgres -h new-db-host.example.com -p 5432 -f users_roles.sql
+
+Restore table excluding large table 
+pg_restore -U my_user -h new-db-host.example.com -p 5432 -d my_database -F c backup.dump
+
+
+Restore large table separately:
+pg_restore -U my_user -h new-db-host.example.com -p 5432 -d my_database -F c large_table.dump
+
+
+
