@@ -114,4 +114,20 @@ Restore large table separately:
 pg_restore -U my_user -h new-db-host.example.com -p 5432 -d my_database -F c large_table.dump
 
 
+$databases = psql -U my_user -h my-db-host.example.com -p 5432 -d postgres -t -c "SELECT datname FROM pg_database WHERE datname NOT IN ('template0', 'template1');"
+
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    $backupPath = "G:\Postgres_Backups\$dbname"
+    
+    # Create backup directory if it doesn't exist
+    if (!(Test-Path $backupPath)) {
+        New-Item -ItemType Directory -Path $backupPath | Out-Null
+    }
+
+    # Run pg_dump with 8 parallel jobs
+    pg_dump -U my_user -h my-db-host.example.com -p 5432 -F d -j 8 -d $dbname -f $backupPath
+}
+
+
 
