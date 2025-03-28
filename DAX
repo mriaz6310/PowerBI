@@ -129,5 +129,8 @@ foreach ($dbname in $databases) {
     pg_dump -U my_user -h my-db-host.example.com -p 5432 -F d -j 8 -d $dbname -f $backupPath
 }
 
+pg_dumpall -U my_user -h my-db-host.example.com -p 5432 --clean --globals-only > "G:\Postgres_Backups\globals.sql"
+
+
 
 
