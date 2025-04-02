@@ -134,3 +134,47 @@ pg_dumpall -U my_user -h my-db-host.example.com -p 5432 --clean --globals-only >
 
 
 
+
+$databases = psql -U my_user -h my-db-host.example.com -p 5432 -d postgres -t -c "SELECT datname FROM pg_database WHERE datname NOT IN ('template0', 'template1');"
+$s3Bucket = "s3://your-bucket-name/Postgres_Backups/"
+$restoreHost = "your-restore-host.example.com"
+$pgUser = "my_user"
+$pgPort = 5432
+
+
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    $backupPath = "/mnt/s3bucket/$dbname"
+
+    # Stream directly from S3 and restore
+    aws s3 cp "$s3Bucket/$dbname" - | pg_restore -U $pgUser -h $restoreHost -p $pgPort -d $dbname -F d --jobs=8
+}
+
+
+
+aws s3 cp "$s3Bucket/globals.sql" - | psql -U $pgUser -h $restoreHost -p $pgPort -d postgres
+
+
+mount s3 as a filesystem:
+
+sudo yum install fuse fuse-s3fs
+mkdir /mnt/s3bucket
+s3fs your-bucket-name /mnt/s3bucket -o iam_role=auto
+
+
+restore:
+
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    pg_restore -U $pgUser -h $restoreHost -p $pgPort -d $dbname -F d --jobs=8 "/mnt/s3bucket/$dbname"
+}
+
+
+
+
+
+
+
+
+
+
