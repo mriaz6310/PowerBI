@@ -155,19 +155,7 @@ foreach ($dbname in $databases) {
 aws s3 cp "$s3Bucket/globals.sql" - | psql -U $pgUser -h $restoreHost -p $pgPort -d postgres
 
 
-mount s3 as a filesystem:
-
-sudo yum install fuse fuse-s3fs
-mkdir /mnt/s3bucket
-s3fs your-bucket-name /mnt/s3bucket -o iam_role=auto
-
-
-restore:
-
-foreach ($dbname in $databases) {
-    $dbname = $dbname.Trim()
-    pg_restore -U $pgUser -h $restoreHost -p $pgPort -d $dbname -F d --jobs=8 "/mnt/s3bucket/$dbname"
-}
+$role = Use-STSRole -RoleArn "arn:aws:iam::ACCOUNT_ID:role/YourRoleName" -RoleSessionName "MySession"
 
 
 
