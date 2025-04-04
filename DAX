@@ -232,6 +232,21 @@ Write-Output "Database restore completed successfully."
 
 
 
+# Assuming the database names are same as the folder names in your dump directory
+for d in /path/to/dumps/*; do
+    dbname=$(basename "$d")
+    psql -h your-rds-endpoint.amazonaws.com -U your_user -d postgres -c "CREATE DATABASE $dbname;"
+done
+
+
+for d in /path/to/dumps/*; do
+    dbname=$(basename "$d")
+    pg_restore -h your-rds-endpoint.amazonaws.com -U your_user -d "$dbname" -Fd "$d" -j 4
+done
+
+
+
+
 
 
 
