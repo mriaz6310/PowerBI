@@ -187,6 +187,28 @@ foreach ($dbname in $databases) {
 
 
 
+# Prompt for PostgreSQL credentials
+$PGUSER = Read-Host "Enter PostgreSQL username"
+$PGHOST = Read-Host "Enter PostgreSQL host"
+$PGPORT = Read-Host "Enter PostgreSQL port"
+$DBNAME = Read-Host "Enter database name to restore"
+$BACKUP_PATH = Read-Host "Enter full path to the backup directory"
+
+# Drop the database if it exists
+Write-Output "Dropping database if it exists..."
+psql -U $PGUSER -h $PGHOST -p $PGPORT -d postgres -c "DROP DATABASE IF EXISTS $DBNAME;"
+
+# Create a new database
+Write-Output "Creating new database..."
+psql -U $PGUSER -h $PGHOST -p $PGPORT -d postgres -c "CREATE DATABASE $DBNAME OWNER $PGUSER;"
+
+# Restore the database using pg_restore
+Write-Output "Restoring database from backup..."
+pg_restore -U $PGUSER -h $PGHOST -p $PGPORT -d $DBNAME -F d "$BACKUP_PATH"
+
+Write-Output "Database restore completed successfully."
+
+
 
 
 
