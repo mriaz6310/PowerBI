@@ -160,6 +160,24 @@ $role = Use-STSRole -RoleArn "arn:aws:iam::ACCOUNT_ID:role/YourRoleName" -RoleSe
 
 
 
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    $backupPath = "G:\Postgres_Backups\$dbname"
+
+    # Create the database if it doesn't exist
+    psql -U $PGUSER -h $PGHOST -p $PGPORT -d postgres -c "DROP DATABASE IF EXISTS $dbname;"
+    psql -U $PGUSER -h $PGHOST -p $PGPORT -d postgres -c "CREATE DATABASE $dbname OWNER $PGUSER;"
+
+    # Restore the database
+    pg_restore -U $PGUSER -h $PGHOST -p $PGPORT -d $dbname -F d "$backupPath"
+    
+    Write-Output "Database $dbname restored successfully."
+}
+
+
+
+
+
 
 
 
