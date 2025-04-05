@@ -16,3 +16,31 @@ $DumpAllCommand = "pg_dumpall -h $PGHOST -p $PGPORT -U $PGUSER --roles-only > `"
 Invoke-Expression $DumpAllCommand
 
 Write-Output "Users and roles dump completed at $RolesDumpFile."
+
+
+
+
+# PostgreSQL connection details
+$PGHOST = "your-db-host"
+$PGPORT = "5432"
+$PGUSER = "your_user"
+$TARGET_DB = "your_target_db"
+$DUMP_DIR = "C:\pg_dumps\your_db_dump"     # Directory-format pg_dump folder
+$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" # Adjust to your PostgreSQL version
+$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
+$JOBS = 8  # Parallel jobs for restore
+
+# Drop and recreate the database
+Write-Output "Dropping and recreating target database: $TARGET_DB..."
+$DropDB = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"DROP DATABASE IF EXISTS $TARGET_DB;`""
+$CreateDB = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"CREATE DATABASE $TARGET_DB;`""
+
+Invoke-Expression $DropDB
+Invoke-Expression $CreateDB
+Write-Output "Database $TARGET_DB recreated."
+
+# Restore database from directory-format dump
+Write-Output "Starting pg_restore from $DUMP_DIR..."
+$RestoreCmd = "& `"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $TARGET_DB -Fd `"$DUMP_DIR`" -j $JOBS --verbose"
+Invoke-Expression $RestoreCmd
+Write-Output "Database restore completed successfully."
