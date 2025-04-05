@@ -159,3 +159,47 @@ foreach ($db in $databases) {
     Write-Output "✅ Restore completed for $db"
 }
 
+
+# Connection Info
+$PGHOST = "your-db-host"
+$PGPORT = "5432"
+$PGUSER = "your_user"
+$JOBS = 8  # Parallel jobs
+$PGPASSWORD = "your_password"  # Optional if not using .pgpass
+
+# PostgreSQL binaries
+$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
+$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
+
+# Backup Root
+$DUMP_ROOT = "C:\pg_dumps"
+
+# List of DBs to restore
+$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
+
+# Optional: Set PGPASSWORD as environment variable
+$env:PGPASSWORD = $PGPASSWORD
+
+foreach ($db in $databases) {
+    $dumpPath = Join-Path $DUMP_ROOT $db
+
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
+        continue
+    }
+
+    Write-Output "`n=== Restoring database: $db ==="
+
+    # Drop and recreate the database
+    cmd.exe /c "`"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"DROP DATABASE IF EXISTS $db;`""
+    cmd.exe /c "`"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"CREATE DATABASE $db;`""
+
+    Write-Output "Dropped and recreated $db"
+
+    # Run pg_restore with all args passed as a single string
+    $restoreCommand = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd `"$dumpPath`" -j $JOBS --verbose"
+    cmd.exe /c $restoreCommand
+
+    Write-Output "✅ Restore completed for $db"
+}
+
