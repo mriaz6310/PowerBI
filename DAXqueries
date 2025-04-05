@@ -212,3 +212,53 @@ foreach ($db in $databases) {
 
     Write-Output "✅ Restore completed for $db"
 }
+
+
+
+
+
+
+
+
+
+# PostgreSQL connection info
+$PGHOST = "your-db-host"
+$PGPORT = "5432"
+$PGUSER = "your_user"
+$PGPASSWORD = "your_password"
+$JOBS = 8
+
+# Paths
+$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
+$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
+$DUMP_ROOT = "C:\pg_dumps"
+
+# Set the environment variable
+$env:PGPASSWORD = $PGPASSWORD
+
+# List of databases
+$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
+
+foreach ($db in $databases) {
+    $dumpPath = Join-Path $DUMP_ROOT $db
+
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
+        continue
+    }
+
+    Write-Output "`n=== Restoring database: $db ==="
+
+    # Drop and recreate DB
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
+
+    # Compose full restore command as a single string
+    $cmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd `"$dumpPath`" -j $JOBS --verbose"
+
+    # Run via cmd to avoid PowerShell parsing issues
+    cmd.exe /c $cmd
+
+    Write-Output "✅ Restore completed for $db"
+}
+
