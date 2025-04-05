@@ -160,25 +160,27 @@ foreach ($db in $databases) {
 }
 
 
-# Connection Info
+
+
+
+
+# PostgreSQL Connection Info
 $PGHOST = "your-db-host"
 $PGPORT = "5432"
 $PGUSER = "your_user"
-$JOBS = 8  # Parallel jobs
-$PGPASSWORD = "your_password"  # Optional if not using .pgpass
+$PGPASSWORD = "your_password"
+$JOBS = 8
 
-# PostgreSQL binaries
+# Set PGPASSWORD for PostgreSQL tools
+$env:PGPASSWORD = $PGPASSWORD
+
+# PostgreSQL Paths
 $PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
 $PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-
-# Backup Root
 $DUMP_ROOT = "C:\pg_dumps"
 
-# List of DBs to restore
+# List of databases
 $databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
-
-# Optional: Set PGPASSWORD as environment variable
-$env:PGPASSWORD = $PGPASSWORD
 
 foreach ($db in $databases) {
     $dumpPath = Join-Path $DUMP_ROOT $db
@@ -191,15 +193,22 @@ foreach ($db in $databases) {
     Write-Output "`n=== Restoring database: $db ==="
 
     # Drop and recreate the database
-    cmd.exe /c "`"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"DROP DATABASE IF EXISTS $db;`""
-    cmd.exe /c "`"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"CREATE DATABASE $db;`""
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
 
-    Write-Output "Dropped and recreated $db"
+    # Build arguments
+    $args = @(
+        "-h", $PGHOST,
+        "-p", $PGPORT,
+        "-U", $PGUSER,
+        "-d", $db,
+        "-Fd", $dumpPath,
+        "-j", "$JOBS",
+        "--verbose"
+    )
 
-    # Run pg_restore with all args passed as a single string
-    $restoreCommand = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd `"$dumpPath`" -j $JOBS --verbose"
-    cmd.exe /c $restoreCommand
+    # Run pg_restore using Start-Process
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $args -Wait -NoNewWindow
 
     Write-Output "✅ Restore completed for $db"
 }
-
