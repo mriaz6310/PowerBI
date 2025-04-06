@@ -1,430 +1,51 @@
-# Define parameters
-$PGHOST = "your-hostname"
-$PGPORT = "5432"
-$PGUSER = "your-username"
-$BACKUP_PATH = "C:\pg_dumps"
-$RolesDumpFile = "$BACKUP_PATH\users_roles.sql"
-
-# Ensure backup directory exists
-if (!(Test-Path -Path $BACKUP_PATH)) {
-    New-Item -ItemType Directory -Path $BACKUP_PATH | Out-Null
-}
-
-# Dump all users and roles
-Write-Output "Starting dump of all users and roles..."
-$DumpAllCommand = "pg_dumpall -h $PGHOST -p $PGPORT -U $PGUSER --roles-only > `"$RolesDumpFile`""
-Invoke-Expression $DumpAllCommand
-
-Write-Output "Users and roles dump completed at $RolesDumpFile."
-
-
-
-
-# PostgreSQL connection details
-$PGHOST = "your-db-host"
-$PGPORT = "5432"
-$PGUSER = "your_user"
-$TARGET_DB = "your_target_db"
-$DUMP_DIR = "C:\pg_dumps\your_db_dump"     # Directory-format pg_dump folder
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" # Adjust to your PostgreSQL version
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-$JOBS = 8  # Parallel jobs for restore
-
-# Drop and recreate the database
-Write-Output "Dropping and recreating target database: $TARGET_DB..."
-$DropDB = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"DROP DATABASE IF EXISTS $TARGET_DB;`""
-$CreateDB = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"CREATE DATABASE $TARGET_DB;`""
-
-Invoke-Expression $DropDB
-Invoke-Expression $CreateDB
-Write-Output "Database $TARGET_DB recreated."
-
-# Restore database from directory-format dump
-Write-Output "Starting pg_restore from $DUMP_DIR..."
-$RestoreCmd = "& `"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $TARGET_DB -Fd `"$DUMP_DIR`" -j $JOBS --verbose"
-Invoke-Expression $RestoreCmd
-Write-Output "Database restore completed successfully."
-
-
-
-# Connection Info
-$PGHOST = "your-db-host"
-$PGPORT = "5432"
-$PGUSER = "your_user"
-$JOBS = 8  # Parallel jobs
-
-# PostgreSQL binaries (adjust path)
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-
-# Root backup folder (each DB has its own subfolder with dump)
-$DUMP_ROOT = "C:\pg_dumps"
-
-# List of databases to restore
-$databases = @(
-    "db1",
-    "db2",
-    "db3",
-    "db4",
-    "db5",
-    "db6",
-    "db7",
-    "db8",
-    "db9",
-    "db10"
-)
-
-foreach ($db in $databases) {
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
-        continue
-    }
-
-    Write-Output "`n=== Restoring database: $db ==="
-
-    # Drop and recreate DB
-    $dropCmd = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"DROP DATABASE IF EXISTS $db;`""
-    $createCmd = "& `"$PSQL`" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c `"CREATE DATABASE $db;`""
-    Invoke-Expression $dropCmd
-    Invoke-Expression $createCmd
-    Write-Output "Dropped and recreated $db"
-
-    # Restore in parallel
-    $restoreCmd = "& `"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd `"$dumpPath`" -j $JOBS --verbose"
-    Invoke-Expression $restoreCmd
-
-    Write-Output "✅ Restore completed for $db"
-}
-
-
-# Connection Info
-$PGHOST = "your-db-host"
-$PGPORT = "5432"
-$PGUSER = "your_user"
-$JOBS = 8  # Number of parallel restore jobs
-
-# PostgreSQL binaries
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-
-# Backup Root (each DB has a folder named after it)
-$DUMP_ROOT = "C:\pg_dumps"
-
-# Databases to restore
-$databases = @(
-    "db1",
-    "db2",
-    "db3",
-    "db4",
-    "db5",
-    "db6",
-    "db7",
-    "db8",
-    "db9",
-    "db10"
-)
-
-foreach ($db in $databases) {
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
-        continue
-    }
-
-    Write-Output "`n=== Restoring database: $db ==="
-
-    # Drop and recreate DB
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
-
-    Write-Output "Dropped and recreated $db"
-
-    # Build restore arguments
-    $restoreArgs = @(
-        "-h", $PGHOST,
-        "-p", $PGPORT,
-        "-U", $PGUSER,
-        "-d", $db,
-        "-Fd", $dumpPath,
-        "-j", $JOBS,
-        "--verbose"
-    )
-
-    # Restore using pg_restore with correct argument passing
-    & "$PG_RESTORE" @restoreArgs
-
-    Write-Output "✅ Restore completed for $db"
-}
-
-
-
-
-
-
-# PostgreSQL Connection Info
-$PGHOST = "your-db-host"
-$PGPORT = "5432"
-$PGUSER = "your_user"
-$PGPASSWORD = "your_password"
-$JOBS = 8
-
-# Set PGPASSWORD for PostgreSQL tools
-$env:PGPASSWORD = $PGPASSWORD
-
-# PostgreSQL Paths
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-$DUMP_ROOT = "C:\pg_dumps"
-
-# List of databases
-$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
-
-foreach ($db in $databases) {
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
-        continue
-    }
-
-    Write-Output "`n=== Restoring database: $db ==="
-
-    # Drop and recreate the database
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
-
-    # Build arguments
-    $args = @(
-        "-h", $PGHOST,
-        "-p", $PGPORT,
-        "-U", $PGUSER,
-        "-d", $db,
-        "-Fd", $dumpPath,
-        "-j", "$JOBS",
-        "--verbose"
-    )
-
-    # Run pg_restore using Start-Process
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $args -Wait -NoNewWindow
-
-    Write-Output "✅ Restore completed for $db"
-}
-
-
-
-
-
-
-
-
-
-# PostgreSQL connection info
-$PGHOST = "your-hostname"
-$PGPORT = "5432"
-$PGUSER = "your-username"
-$PGPASSWORD = "your-password"
-$JOBS = 8
-
-# Set password for pg_restore
-$env:PGPASSWORD = $PGPASSWORD
-
-# Paths
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-$DUMP_ROOT = "C:\pg_dumps"
-
-# List of database names
-$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
-
-foreach ($db in $databases) {
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
-        continue
-    }
-
-    Write-Output "`n=== Restoring database: $db ==="
-
-    # Drop and recreate the DB
-    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
-    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
-
-    # Use array-style arguments to avoid PowerShell parsing issues
-    & $PG_RESTORE `
-        -j $JOBS `
-        -h $PGHOST `
-        -p $PGPORT `
-        -U $PGUSER `
-        -d $db `
-        --no-owner `
-        -Fd $dumpPath
-
-    Write-Output "✅ Restore completed for $db"
-}
-
-
-
-
-
-
-
-
-
-
-# PostgreSQL connection info
-$PGHOST = "your-hostname"
-$PGPORT = "5432"
-$PGUSER = "your-superuser"       # This is the user running the script (must have superuser privileges)
-$PGPASSWORD = "your-password"
-$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
-$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
-
-# Paths
-$DUMP_ROOT = "C:\pg_dumps"                   # Folder where your dump folders (one per DB) are stored
-$LOG_ROOT = "C:\pg_restore_logs"
-New-Item -Path $LOG_ROOT -ItemType Directory -Force | Out-Null
-
-# Set env variable for password
-$env:PGPASSWORD = $PGPASSWORD
-
-# List of databases to restore
-$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
-
-# Ensure the 'postgresadmin' role exists
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$globalLogFile = Join-Path $LOG_ROOT "role-check-$timestamp.log"
-Write-Host "🧾 Ensuring 'postgresadmin' role exists..." | Tee-Object -FilePath $globalLogFile -Append
-
+# Create role if not exists
 $roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
-$createRoleResult = & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd 2>&1
-$createRoleResult | Tee-Object -FilePath $globalLogFile -Append
-
-foreach ($db in $databases) {
-    if ([string]::IsNullOrWhiteSpace($db)) {
-        Write-Warning "⚠️ Skipping null or empty DB name"
-        continue
-    }
-
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $logFile = Join-Path $LOG_ROOT "$db-restore-$timestamp.log"
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    Write-Host "`n🔄 Dropping and recreating database: $db" | Tee-Object -FilePath $logFile -Append
-
-    # Drop and recreate the database
-    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
-    $createResult = & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" 2>&1
-    $createResult | Tee-Object -FilePath $logFile -Append
-
-    if ($createResult -join "`n" -match "ERROR") {
-        Write-Error "❌ Failed to create DB: $db. Skipping..." | Tee-Object -FilePath $logFile -Append
-        continue
-    }
-
-    Start-Sleep -Seconds 3
-
-    # Restore schema only (1 job)
-    Write-Host "📐 Restoring schema for $db..." | Tee-Object -FilePath $logFile -Append
-    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd $dumpPath --no-owner -s -j 1 2>&1 | Tee-Object -FilePath $logFile -Append
-
-    # Restore data only (8 jobs)
-    Write-Host "📦 Restoring data for $db..." | Tee-Object -FilePath $logFile -Append
-    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd $dumpPath --no-owner -a -j 8 2>&1 | Tee-Object -FilePath $logFile -Append
-
-    Write-Host "✅ Completed restore for $db" | Tee-Object -FilePath $logFile -Append
-}
-
-
-
-# Ensure 'postgresadmin' role exists
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$globalLogFile = Join-Path $LOG_ROOT "role-check-$timestamp.log"
-Write-Host "🔐 Ensuring role 'postgresadmin' exists..." | Tee-Object -FilePath $globalLogFile -Append
-$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
-& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd 2>&1 | Tee-Object -FilePath $globalLogFile -Append
-
-foreach ($db in $databases) {
-    if ([string]::IsNullOrWhiteSpace($db)) {
-        Write-Warning "⚠️ Skipping empty DB name"
-        continue
-    }
-
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $logFile = Join-Path $LOG_ROOT "$db-restore-$timestamp.log"
-    $dumpPath = Join-Path $DUMP_ROOT $db
-
-    Write-Host "`n🧹 Dropping and recreating database: $db" | Tee-Object -FilePath $logFile -Append
-    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
-    $createResult = & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" 2>&1
-    $createResult | Tee-Object -FilePath $logFile -Append
-
-    if ($createResult -join "`n" -match "ERROR") {
-        Write-Error "❌ Could not create DB: $db. Skipping." | Tee-Object -FilePath $logFile -Append
-        continue
-    }
-
-    Start-Sleep -Seconds 3
-
-    # Restore schema only with 1 job
-    Write-Host "📐 Restoring schema for $db..." | Tee-Object -FilePath $logFile -Append
-    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd $dumpPath --no-owner -s -j 1 2>&1 | Tee-Object -FilePath $logFile -Append
-
-    # Restore data only with 8 jobs
-    Write-Host "📦 Restoring data for $db with 8 parallel jobs..." | Tee-Object -FilePath $logFile -Append
-    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db -Fd $dumpPath --no-owner -a -j 8 2>&1 | Tee-Object -FilePath $logFile -Append
-
-    Write-Host "✅ Finished restoring $db" | Tee-Object -FilePath $logFile -Append
-}
-
-
-
-
-
-
-
-# Ensure postgresadmin role exists
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$globalLogFile = Join-Path $LOG_ROOT "role-check-$timestamp.log"
-Write-Host "🔐 Checking/Creating role 'postgresadmin'..." | Tee-Object -FilePath $globalLogFile -Append
-$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
-& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd 2>&1 | Tee-Object -FilePath $globalLogFile -Append
+& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
 
 foreach ($db in $databases) {
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $logFile = Join-Path $LOG_ROOT "$db-restore-$timestamp.log"
     $dumpPath = Join-Path $DUMP_ROOT $db
 
-    Write-Host "`n💣 Dropping and creating $db..." | Tee-Object -FilePath $logFile -Append
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "🚫 Dump path not found for $db. Skipping..."
+        continue
+    }
+
+    Write-Host "`n🧹 Dropping and recreating DB: $db" | Tee-Object -FilePath $logFile -Append
     & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
     & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
+    Start-Sleep -Seconds 2
 
-    Start-Sleep -Seconds 3
+    # Build schema restore args
+    $schemaArgs = @(
+        "-h", $PGHOST,
+        "-p", $PGPORT,
+        "-U", $PGUSER,
+        "-d", $db,
+        "-Fd", "`"$dumpPath`"",
+        "--no-owner",
+        "-s",
+        "-j", "1"
+    )
 
     Write-Host "📐 Restoring schema for $db..." | Tee-Object -FilePath $logFile -Append
-    & "$PG_RESTORE" `
-        "-h", $PGHOST, `
-        "-p", $PGPORT, `
-        "-U", $PGUSER, `
-        "-d", $db, `
-        "-Fd", $dumpPath, `
-        "--no-owner", `
-        "-s", `
-        "-j", "1" 2>&1 | Tee-Object -FilePath $logFile -Append
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaArgs -NoNewWindow -Wait -RedirectStandardOutput $logFile -RedirectStandardError $logFile
 
-    Write-Host "📦 Restoring data for $db with 8 jobs..." | Tee-Object -FilePath $logFile -Append
-    & "$PG_RESTORE" `
-        "-h", $PGHOST, `
-        "-p", $PGPORT, `
-        "-U", $PGUSER, `
-        "-d", $db, `
-        "-Fd", $dumpPath, `
-        "--no-owner", `
-        "-a", `
-        "-j", "8" 2>&1 | Tee-Object -FilePath $logFile -Append
+    # Build data restore args
+    $dataArgs = @(
+        "-h", $PGHOST,
+        "-p", $PGPORT,
+        "-U", $PGUSER,
+        "-d", $db,
+        "-Fd", "`"$dumpPath`"",
+        "--no-owner",
+        "-a",
+        "-j", "8"
+    )
 
-    Write-Host "✅ Completed restore for $db" | Tee-Object -FilePath $logFile -Append
+    Write-Host "📦 Restoring data for $db..." | Tee-Object -FilePath $logFile -Append
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataArgs -NoNewWindow -Wait -RedirectStandardOutput $logFile -RedirectStandardError $logFile
+
+    Write-Host "✅ Finished restoring $db" | Tee-Object -FilePath $logFile -Append
 }
