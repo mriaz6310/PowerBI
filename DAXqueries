@@ -55,30 +55,4 @@ foreach ($db in $databases) {
 
 
 
-
-# --- Schema Restore ---
-Write-Host "📐 Restoring schema for $db..."
-Start-Process -FilePath "$PG_RESTORE" `
-    -ArgumentList "-h", "$PGHOST", "-p", "$PGPORT", "-U", "$PGUSER", "-d", "$db",
-                  "--no-owner", "-Fd", "`"$dumpPath`"", "-s", "-j", "1" `
-    -NoNewWindow -Wait `
-    -RedirectStandardOutput $outLog `
-    -RedirectStandardError $errLog
-
-# --- Data Restore ---
-Write-Host "📦 Restoring data for $db..."
-Start-Process -FilePath "$PG_RESTORE" `
-    -ArgumentList "-h", "$PGHOST", "-p", "$PGPORT", "-U", "$PGUSER", "-d", "$db",
-                  "--no-owner", "-Fd", "`"$dumpPath`"", "-a", "-j", "8" `
-    -NoNewWindow -Wait `
-    -RedirectStandardOutput $outLog `
-    -RedirectStandardError $errLog
-
-
-
-
-
-Start-Process -FilePath "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" `
-  -ArgumentList "-h", "localhost", "-p", "5432", "-U", "postgresadmin", "-d", "db1",
-                "--no-owner", "-Fd", "`"C:\pg_dumps\db1`"", "-s", "-j", "1" `
-  -NoNewWindow -Wait
+cmd.exe /c "`"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe`" -h localhost -p 5432 -U postgresadmin -d db1 --no-owner -Fd `"C:\pg_dumps\db1`" -s -j 1"
