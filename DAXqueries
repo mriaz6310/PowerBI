@@ -349,3 +349,78 @@ Write-Host "`n--- Resetting PostgreSQL configs to defaults ---"
 
 Write-Host "`n✅ All databases restored and PostgreSQL config reset."
 
+
+
+
+
+
+
+
+# PostgreSQL connection info
+$PGHOST = "your-hostname"
+$PGPORT = "5432"
+$PGUSER = "your-superuser"
+$PGPASSWORD = "your-password"  # You can use pgpass.conf for better security
+$JOBS = 8                      # Parallel jobs per DB restore
+
+# PostgreSQL binaries
+$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
+$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
+
+# Root dump path and log path
+$DUMP_ROOT = "C:\pg_dumps"
+$LOG_ROOT = "C:\pg_restore_logs"
+New-Item -Path $LOG_ROOT -ItemType Directory -Force | Out-Null
+
+# Databases to restore
+$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
+
+# Set environment password
+$env:PGPASSWORD = $PGPASSWORD
+
+# Tuning parameters
+$maintenance_work_mem = "1GB"
+$checkpoint_timeout = "30min"
+$max_wal_size = "4GB"
+
+foreach ($db in $databases) {
+    $dumpPath = Join-Path $DUMP_ROOT $db
+    $logFile = Join-Path $LOG_ROOT "$db-restore.log"
+
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
+        continue
+    }
+
+    Write-Host "`n=== Restoring database: $db ===" | Tee-Object -FilePath $logFile -Append
+
+    # Drop and recreate DB
+    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" | Tee-Object -FilePath $logFile -Append
+    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" | Tee-Object -FilePath $logFile -Append
+
+    # Apply tuning parameters
+    $sessionTuning = @"
+SET maintenance_work_mem = '$maintenance_work_mem';
+SET checkpoint_timeout = '$checkpoint_timeout';
+SET max_wal_size = '$max_wal_size';
+"@
+
+    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d $db -c $sessionTuning | Tee-Object -FilePath $logFile -Append
+
+    # Perform the restore with --clean
+    & $PG_RESTORE `
+        -j $JOBS `
+        -h $PGHOST `
+        -p $PGPORT `
+        -U $PGUSER `
+        -d $db `
+        --no-owner `
+        --clean `
+        -Fd $dumpPath `
+        2>&1 | Tee-Object -FilePath $logFile -Append
+
+    Write-Host "✅ Restore completed for $db" | Tee-Object -FilePath $logFile -Append
+}
+
+Write-Host "`n🚀 All database restores completed. Logs saved to: $LOG_ROOT"
+
