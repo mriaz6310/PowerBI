@@ -89,16 +89,17 @@ foreach ($db in $databases) {
 
     # --- Schema Restore ---
     Write-Host "📐 Restoring schema for $db..."
-    $schemaRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -s -j 1"
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaRestoreCmd -NoNewWindow -Wait `
+    $schemaRestoreArgs = @("-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "--no-owner", "-Fd", "$dumpPath", "-s", "-j", "1")
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaRestoreArgs -NoNewWindow -Wait `
         -RedirectStandardOutput $outLog `
         -RedirectStandardError $errLog
 
     # --- Data Restore ---
     Write-Host "📦 Restoring data for $db..."
-    $dataRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -a -j 8"
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataRestoreCmd -NoNewWindow -Wait `
+    $dataRestoreArgs = @("-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "--no-owner", "-Fd", "$dumpPath", "-a", "-j", "8")
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataRestoreArgs -NoNewWindow -Wait `
         -RedirectStandardOutput $outLog `
         -RedirectStandardError $errLog
 
     Write-Host "✅ Completed restoring $db. Logs at $outLog and $errLog"
+}
