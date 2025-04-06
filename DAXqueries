@@ -379,3 +379,52 @@ foreach ($db in $databases) {
 
     Write-Host "✅ Finished restoring $db" | Tee-Object -FilePath $logFile -Append
 }
+
+
+
+
+
+
+
+# Ensure postgresadmin role exists
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$globalLogFile = Join-Path $LOG_ROOT "role-check-$timestamp.log"
+Write-Host "🔐 Checking/Creating role 'postgresadmin'..." | Tee-Object -FilePath $globalLogFile -Append
+$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
+& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd 2>&1 | Tee-Object -FilePath $globalLogFile -Append
+
+foreach ($db in $databases) {
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $logFile = Join-Path $LOG_ROOT "$db-restore-$timestamp.log"
+    $dumpPath = Join-Path $DUMP_ROOT $db
+
+    Write-Host "`n💣 Dropping and creating $db..." | Tee-Object -FilePath $logFile -Append
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" 2>&1 | Tee-Object -FilePath $logFile -Append
+
+    Start-Sleep -Seconds 3
+
+    Write-Host "📐 Restoring schema for $db..." | Tee-Object -FilePath $logFile -Append
+    & "$PG_RESTORE" `
+        "-h", $PGHOST, `
+        "-p", $PGPORT, `
+        "-U", $PGUSER, `
+        "-d", $db, `
+        "-Fd", $dumpPath, `
+        "--no-owner", `
+        "-s", `
+        "-j", "1" 2>&1 | Tee-Object -FilePath $logFile -Append
+
+    Write-Host "📦 Restoring data for $db with 8 jobs..." | Tee-Object -FilePath $logFile -Append
+    & "$PG_RESTORE" `
+        "-h", $PGHOST, `
+        "-p", $PGPORT, `
+        "-U", $PGUSER, `
+        "-d", $db, `
+        "-Fd", $dumpPath, `
+        "--no-owner", `
+        "-a", `
+        "-j", "8" 2>&1 | Tee-Object -FilePath $logFile -Append
+
+    Write-Host "✅ Completed restore for $db" | Tee-Object -FilePath $logFile -Append
+}
