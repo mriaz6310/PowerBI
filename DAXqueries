@@ -166,3 +166,28 @@ echo 📁 Logs:
 echo   ➤ %OUTLOG%
 echo   ➤ %ERRLOG%
 pause
+
+
+
+
+
+
+
+
+
+
+REM === Drop DB if exists
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Create DB
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Restore schema (ONE LINE)
+"%PG_BIN%\pg_restore.exe" -j 1 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -s >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Restore data (ONE LINE)
+"%PG_BIN%\pg_restore.exe" -j 8 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -a >> %OUTLOG% 2>> %ERRLOG%
+
+echo ✅ Restore complete for %DBNAME%
+echo 🔍 Logs at %OUTLOG%
+pause
