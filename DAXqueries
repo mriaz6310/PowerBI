@@ -151,3 +151,47 @@ echo   - %OUTLOG%
 echo   - %ERRLOG%
 
 pause
+
+
+
+
+
+
+
+
+
+
+@echo off
+setlocal enabledelayedexpansion
+
+REM === Configuration ===
+set PGPASSWORD=your-password
+set DBNAME=%1
+set DUMP_PATH=C:\pg_dumps\%DBNAME%
+set PGHOST=rma-dev-hydra-aurorapg01-instance-1.ci14swg84unm.us-east-1.rds.amazonaws.com
+set PGPORT=5432
+set PGUSER=your-user
+set PG_BIN=C:\Program Files\PostgreSQL\16\bin
+
+REM === Check if DB exists ===
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '%DBNAME%';" | findstr 1 >nul
+
+IF %ERRORLEVEL%==0 (
+    echo ⚠️  Database [%DBNAME%] exists — dropping...
+    "%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;"
+)
+
+echo 🆕 Creating database [%DBNAME%]...
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;"
+
+REM === Restore schema ===
+echo 📐 Restoring schema for [%DBNAME%]...
+"%PG_BIN%\pg_restore.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -s -j 1
+
+REM === Restore data ===
+echo 📦 Restoring data for [%DBNAME%]...
+"%PG_BIN%\pg_restore.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -a -j 8
+
+echo ✅ Done restoring [%DBNAME%]
+pause
+
