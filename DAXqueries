@@ -52,3 +52,55 @@ foreach ($db in $databases) {
 
     Write-Host "✅ Completed restoring $db. Logs at $outLog and $errLog"
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Ensure the 'postgresadmin' role exists
+$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
+& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
+
+foreach ($db in $databases) {
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $dumpPath = Join-Path $DUMP_ROOT $db
+    $outLog = Join-Path $LOG_ROOT "$db-restore-$timestamp.out.log"
+    $errLog = Join-Path $LOG_ROOT "$db-restore-$timestamp.err.log"
+
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "🚫 Dump path not found for $db. Skipping..."
+        continue
+    }
+
+    Write-Host "`n🧹 Dropping and recreating DB: $db"
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
+    Start-Sleep -Seconds 2
+
+    # --- Schema Restore ---
+    $schemaArgs = "-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "-Fd", "`"$dumpPath`"","--no-owner", "-s", "-j", "1"
+    Write-Host "📐 Restoring schema for $db..."
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaArgs -NoNewWindow -Wait `
+        -RedirectStandardOutput $outLog `
+        -RedirectStandardError $errLog
+
+    # --- Data Restore ---
+    $dataArgs = "-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "-Fd", "`"$dumpPath`"","--no-owner", "-a", "-j", "8"
+    Write-Host "📦 Restoring data for $db..."
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataArgs -NoNewWindow -Wait `
+        -RedirectStandardOutput $outLog `
+        -RedirectStandardError $errLog
+
+    Write-Host "✅ Completed restoring $db. Logs at $outLog and $errLog"
+}
