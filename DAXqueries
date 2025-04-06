@@ -111,40 +111,43 @@ foreach ($db in $databases) {
 @echo off
 setlocal enabledelayedexpansion
 
-REM === Config ===
+REM === Configuration ===
 set PGPASSWORD=your-password
 set DBNAME=%1
-set DUMP=C:\pg_dumps\%DBNAME%
+set DUMP_PATH=C:\pg_dumps\%DBNAME%
 set PGHOST=your-rds-endpoint.rds.amazonaws.com
 set PGPORT=5432
 set PGUSER=your-user
 set PG_BIN="C:\Program Files\PostgreSQL\16\bin"
 
-REM === Drop and create DB using psql ===
-echo 🔍 Checking if database [%DBNAME%] exists...
+REM === Optional: Create log directory ===
+set LOGDIR=C:\pg_restore_logs
+if not exist %LOGDIR% mkdir %LOGDIR%
+set OUTLOG=%LOGDIR%\%DBNAME%-restore.out.log
+set ERRLOG=%LOGDIR%\%DBNAME%-restore.err.log
 
+REM === Check if DB exists ===
+echo 🔍 Checking if database [%DBNAME%] exists...
 %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '%DBNAME%';" | findstr 1 >nul
 
 IF %ERRORLEVEL%==0 (
     echo ⚠️  Database [%DBNAME%] exists — dropping...
-    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;"
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
 )
 
 echo 🆕 Creating database [%DBNAME%]...
-%PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;"
+%PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
 
 REM === Restore schema ===
-echo ✅ Restoring schema for [%DBNAME%]...
-%PG_BIN%\pg_restore.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP%" -s -j 1
+echo 📐 Restoring schema for [%DBNAME%]...
+%PG_BIN%\pg_restore.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -s -j 1 >> %OUTLOG% 2>> %ERRLOG%
 
 REM === Restore data ===
-echo ✅ Restoring data for [%DBNAME%]...
-%PG_BIN%\pg_restore.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP%" -a -j 8
+echo 📦 Restoring data for [%DBNAME%]...
+%PG_BIN%\pg_restore.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -a -j 8 >> %OUTLOG% 2>> %ERRLOG%
 
-echo 🎉 Restore complete for [%DBNAME%]
+echo ✅ Restore complete for [%DBNAME%]. Logs saved to:
+echo   - %OUTLOG%
+echo   - %ERRLOG%
+
 pause
-
-
-
-
-
