@@ -62,11 +62,6 @@ foreach ($db in $databases) {
 
 
 
-
-
-
-
-
 # Ensure the 'postgresadmin' role exists
 $roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
 & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
@@ -89,13 +84,13 @@ foreach ($db in $databases) {
 
     # --- Schema Restore ---
     Write-Host "📐 Restoring schema for $db..."
-    $schemaRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -s -j 1"
+    $schemaRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -s -j 1"
     Write-Host "Running command: $schemaRestoreCmd"
     Invoke-Expression $schemaRestoreCmd > $outLog 2> $errLog
 
     # --- Data Restore ---
     Write-Host "📦 Restoring data for $db..."
-    $dataRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -a -j 8"
+    $dataRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -a -j 8"
     Write-Host "Running command: $dataRestoreCmd"
     Invoke-Expression $dataRestoreCmd > $outLog 2>> $errLog
 
