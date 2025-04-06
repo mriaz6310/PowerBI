@@ -55,4 +55,46 @@ foreach ($db in $databases) {
 
 
 
-cmd.exe /c "`"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe`" -h localhost -p 5432 -U postgresadmin -d db1 --no-owner -Fd `"C:\pg_dumps\db1`" -s -j 1"
+
+
+
+
+
+tune.sql
+SET maintenance_work_mem = '512MB';
+SET checkpoint_timeout = '1800';
+SET max_wal_size = '8192';
+
+%PG_BIN%\psql.exe -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U postgresadmin -d %DBNAME% -f tune.sql
+
+
+
+bat file:
+@echo off
+setlocal enabledelayedexpansion
+set PGPASSWORD=your-password
+
+REM Inputs: %1 = dbname
+set DBNAME=%1
+set DUMP=C:\pg_dumps\%DBNAME%
+
+echo ✅ Restoring schema for %DBNAME%
+"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-user -d %DBNAME% --no-owner -Fd "%DUMP%" -s -j 1
+
+echo ✅ Restoring data for %DBNAME%
+"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-user -d %DBNAME% --no-owner -Fd "%DUMP%" -a -j 8
+
+
+
+
+
+
+$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
+
+foreach ($db in $databases) {
+    cmd.exe /c restore.bat $db
+}
+
+
+
+
