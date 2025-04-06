@@ -56,96 +56,29 @@ foreach ($db in $databases) {
 
 
 
+# --- Schema Restore ---
+Write-Host "📐 Restoring schema for $db..."
+Start-Process -FilePath "$PG_RESTORE" `
+    -ArgumentList "-h", "$PGHOST", "-p", "$PGPORT", "-U", "$PGUSER", "-d", "$db",
+                  "--no-owner", "-Fd", "`"$dumpPath`"", "-s", "-j", "1" `
+    -NoNewWindow -Wait `
+    -RedirectStandardOutput $outLog `
+    -RedirectStandardError $errLog
 
-
-
-
-# Ensure role exists
-$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
-& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
-
-foreach ($db in $databases) {
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $dumpPath = Join-Path $DUMP_ROOT $db
-    $outLog = Join-Path $LOG_ROOT "$db-restore-$timestamp.out.log"
-    $errLog = Join-Path $LOG_ROOT "$db-restore-$timestamp.err.log"
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "❌ Missing dump for $db"
-        continue
-    }
-
-    # Drop & recreate DB
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" >> $outLog 2>> $errLog
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" >> $outLog 2>> $errLog
-
-    Start-Sleep -Seconds 2
-
-    # --- Restore schema ---
-    Write-Host "📐 Restoring schema for $db..."
-    & "$PG_RESTORE" `
-        -h $PGHOST `
-        -p $PGPORT `
-        -U $PGUSER `
-        -d $db `
-        "--no-owner" `
-        -Fd $dumpPath `
-        -s `
-        -j 1 >> $outLog 2>> $errLog
-
-    # --- Restore data ---
-    Write-Host "📦 Restoring data for $db..."
-    & "$PG_RESTORE" `
-        -h $PGHOST `
-        -p $PGPORT `
-        -U $PGUSER `
-        -d $db `
-        "--no-owner" `
-        -Fd $dumpPath `
-        -a `
-        -j 8 >> $outLog 2>> $errLog
-
-    Write-Host "✅ Completed $db restore"
-}
+# --- Data Restore ---
+Write-Host "📦 Restoring data for $db..."
+Start-Process -FilePath "$PG_RESTORE" `
+    -ArgumentList "-h", "$PGHOST", "-p", "$PGPORT", "-U", "$PGUSER", "-d", "$db",
+                  "--no-owner", "-Fd", "`"$dumpPath`"", "-a", "-j", "8" `
+    -NoNewWindow -Wait `
+    -RedirectStandardOutput $outLog `
+    -RedirectStandardError $errLog
 
 
 
 
 
-
-
-
-# Ensure role
-$roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
-& "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
-
-foreach ($db in $databases) {
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $dumpPath = Join-Path $DUMP_ROOT $db
-    $outLog = Join-Path $LOG_ROOT "$db-$timestamp.out.log"
-    $errLog = Join-Path $LOG_ROOT "$db-$timestamp.err.log"
-
-    if (!(Test-Path $dumpPath)) {
-        Write-Warning "❌ Dump not found for $db"
-        continue
-    }
-
-    # Drop and recreate DB
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
-    Start-Sleep -Seconds 2
-
-    # Schema restore
-    Write-Host "📐 Restoring schema for $db..."
-    $schemaArgs = @("-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "--no-owner", "-Fd", "$dumpPath", "-s", "-j", "1")
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaArgs -NoNewWindow -Wait `
-        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-
-    # Data restore
-    Write-Host "📦 Restoring data for $db..."
-    $dataArgs = @("-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "--no-owner", "-Fd", "$dumpPath", "-a", "-j", "8")
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataArgs -NoNewWindow -Wait `
-        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-
-    Write-Host "✅ $db restore complete"
-}
+Start-Process -FilePath "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" `
+  -ArgumentList "-h", "localhost", "-p", "5432", "-U", "postgresadmin", "-d", "db1",
+                "--no-owner", "-Fd", "`"C:\pg_dumps\db1`"", "-s", "-j", "1" `
+  -NoNewWindow -Wait
