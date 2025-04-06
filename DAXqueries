@@ -176,28 +176,17 @@ pause
 
 
 
-REM === DROP DB ===
-echo 🧹 Dropping database [%DBNAME%] (if exists)...
+echo 🔍 Dropping database [%DBNAME%] if exists...
 "%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
 
-REM === CREATE DB ===
-echo 🏗 Creating database [%DBNAME%]...
+echo 🆕 Creating database [%DBNAME%]...
 "%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
 
-REM === SCHEMA RESTORE ===
 echo 📐 Restoring schema...
 "%PG_BIN%\pg_restore.exe" -j 1 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -s >> %OUTLOG% 2>> %ERRLOG%
 
-REM === DATA RESTORE ===
 echo 📦 Restoring data...
 "%PG_BIN%\pg_restore.exe" -j 8 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -a >> %OUTLOG% 2>> %ERRLOG%
 
-echo ✅ Done! Logs at:
-echo %OUTLOG%
-echo %ERRLOG%
+echo ✅ Done restoring [%DBNAME%]
 pause
-
-
-
-"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -j 8 -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d db1 --no-owner -Fd "C:\pg_dumps\db1"
-
