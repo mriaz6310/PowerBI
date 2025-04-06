@@ -60,8 +60,6 @@ foreach ($db in $databases) {
 
 
 
-
-
 # Ensure the 'postgresadmin' role exists
 $roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
 & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
