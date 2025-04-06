@@ -265,3 +265,87 @@ foreach ($db in $databases) {
 
     Write-Output "✅ Restore completed for $db"
 }
+
+
+
+
+
+
+
+
+# PostgreSQL connection info
+$PGHOST = "your-hostname"
+$PGPORT = "5432"
+$PGUSER = "your-username"
+$PGPASSWORD = "your-password"
+$JOBS = 8
+
+$env:PGPASSWORD = $PGPASSWORD
+
+# PostgreSQL binary paths
+$PG_RESTORE = "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe"
+$PSQL = "C:\Program Files\PostgreSQL\16\bin\psql.exe"
+$DUMP_ROOT = "C:\pg_dumps"
+
+# Databases to restore
+$databases = @("db1", "db2", "db3", "db4", "db5", "db6", "db7", "db8", "db9", "db10")
+
+# --- Dynamically compute available memory ---
+$totalRAMMB = (Get-CimInstance CIM_ComputerSystem).TotalPhysicalMemory / 1MB
+$usableRAMMB = $totalRAMMB * 0.75  # Leave ~25% for OS overhead and other processes
+$memPerJobMB = [math]::Floor($usableRAMMB / $JOBS)
+
+# Format for PostgreSQL (e.g., "512MB")
+$maintenance_mem = "$memPerJobMB" + "MB"
+
+# Other config overrides
+$checkpoint_timeout = "30min"
+$max_wal_size = "4GB"
+$shared_buffers = "128MB"
+
+Write-Host "`n--- System RAM: $([math]::Round($totalRAMMB)) MB | Using $memPerJobMB MB per job ---"
+Write-Host "--- Setting PostgreSQL performance configs for fast restore ---"
+
+# Apply instance-level tuning settings
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM SET maintenance_work_mem = '$maintenance_mem';"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM SET checkpoint_timeout = '$checkpoint_timeout';"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM SET max_wal_size = '$max_wal_size';"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM SET shared_buffers = '$shared_buffers';"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "SELECT pg_reload_conf();"
+
+# Restore loop
+foreach ($db in $databases) {
+    $dumpPath = Join-Path $DUMP_ROOT $db
+
+    if (!(Test-Path $dumpPath)) {
+        Write-Warning "Skipping $db — dump folder not found: $dumpPath"
+        continue
+    }
+
+    Write-Host "`n=== Restoring database: $db ==="
+
+    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
+    & $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
+
+    & $PG_RESTORE `
+        -j $JOBS `
+        -h $PGHOST `
+        -p $PGPORT `
+        -U $PGUSER `
+        -d $db `
+        --no-owner `
+        -Fd $dumpPath
+
+    Write-Host "✅ Restore completed for $db"
+}
+
+# Reset PostgreSQL configs to defaults
+Write-Host "`n--- Resetting PostgreSQL configs to defaults ---"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM RESET maintenance_work_mem;"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM RESET checkpoint_timeout;"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM RESET max_wal_size;"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "ALTER SYSTEM RESET shared_buffers;"
+& $PSQL -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "SELECT pg_reload_conf();"
+
+Write-Host "`n✅ All databases restored and PostgreSQL config reset."
+
