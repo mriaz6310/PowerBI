@@ -71,24 +71,39 @@ foreach ($db in $databases) {
     $errLog = Join-Path $LOG_ROOT "$db-restore-$timestamp.err.log"
 
     if (!(Test-Path $dumpPath)) {
-        Write-Warning "🚫 Dump path not found for $db. Skipping..."
+        Write-Warning "❌ Missing dump for $db"
         continue
     }
 
-    Write-Host "`n🧹 Dropping and recreating DB: $db"
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;"
-    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;"
+    # Drop & recreate DB
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "DROP DATABASE IF EXISTS $db;" >> $outLog 2>> $errLog
+    & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c "CREATE DATABASE $db;" >> $outLog 2>> $errLog
+
     Start-Sleep -Seconds 2
 
-    # --- Schema Restore ---
+    # --- Restore schema ---
     Write-Host "📐 Restoring schema for $db..."
-    $schemaCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -s -j 1"
-    cmd.exe /c "$schemaCmd" >> $outLog 2>> $errLog
+    & "$PG_RESTORE" `
+        -h $PGHOST `
+        -p $PGPORT `
+        -U $PGUSER `
+        -d $db `
+        "--no-owner" `
+        -Fd $dumpPath `
+        -s `
+        -j 1 >> $outLog 2>> $errLog
 
-    # --- Data Restore ---
+    # --- Restore data ---
     Write-Host "📦 Restoring data for $db..."
-    $dataCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -a -j 8"
-    cmd.exe /c "$dataCmd" >> $outLog 2>> $errLog
+    & "$PG_RESTORE" `
+        -h $PGHOST `
+        -p $PGPORT `
+        -U $PGUSER `
+        -d $db `
+        "--no-owner" `
+        -Fd $dumpPath `
+        -a `
+        -j 8 >> $outLog 2>> $errLog
 
-    Write-Host "✅ $db restore complete. Logs: $outLog"
+    Write-Host "✅ Completed $db restore"
 }
