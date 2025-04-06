@@ -89,35 +89,15 @@ foreach ($db in $databases) {
 
     # --- Schema Restore ---
     Write-Host "📐 Restoring schema for $db..."
-    $schemaRestoreArgs = @(
-        "-h", $PGHOST, 
-        "-p", $PGPORT, 
-        "-U", $PGUSER, 
-        "-d", $db, 
-        "--no-owner", 
-        "-Fd", "$dumpPath", 
-        "-s", 
-        "-j", "1"  # 1 for schema restore
-    )
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaRestoreArgs -NoNewWindow -Wait `
-        -RedirectStandardOutput $outLog `
-        -RedirectStandardError $errLog
+    $schemaRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -s -j 1"
+    Write-Host "Running command: $schemaRestoreCmd"
+    Invoke-Expression $schemaRestoreCmd > $outLog 2> $errLog
 
     # --- Data Restore ---
     Write-Host "📦 Restoring data for $db..."
-    $dataRestoreArgs = @(
-        "-h", $PGHOST, 
-        "-p", $PGPORT, 
-        "-U", $PGUSER, 
-        "-d", $db, 
-        "--no-owner", 
-        "-Fd", "$dumpPath", 
-        "-a", # data-only restore
-        "-j", "8"  # 8 parallel jobs for data restore
-    )
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataRestoreArgs -NoNewWindow -Wait `
-        -RedirectStandardOutput $outLog `
-        -RedirectStandardError $errLog
+    $dataRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -a -j 8"
+    Write-Host "Running command: $dataRestoreCmd"
+    Invoke-Expression $dataRestoreCmd > $outLog 2>> $errLog
 
     Write-Host "✅ Completed restoring $db. Logs at $outLog and $errLog"
 }
