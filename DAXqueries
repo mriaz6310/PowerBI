@@ -67,7 +67,6 @@ foreach ($db in $databases) {
 
 
 
-
 # Ensure the 'postgresadmin' role exists
 $roleCheckCmd = "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgresadmin') THEN CREATE ROLE postgresadmin WITH LOGIN SUPERUSER; END IF; END \$\$;"
 & "$PSQL" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres -c $roleCheckCmd
@@ -89,16 +88,16 @@ foreach ($db in $databases) {
     Start-Sleep -Seconds 2
 
     # --- Schema Restore ---
-    $schemaArgs = "-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "-Fd", "`"$dumpPath`"","--no-owner", "-s", "-j", "1"
     Write-Host "📐 Restoring schema for $db..."
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaArgs -NoNewWindow -Wait `
+    $schemaRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -s -j 1"
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $schemaRestoreCmd -NoNewWindow -Wait `
         -RedirectStandardOutput $outLog `
         -RedirectStandardError $errLog
 
     # --- Data Restore ---
-    $dataArgs = "-h", $PGHOST, "-p", $PGPORT, "-U", $PGUSER, "-d", $db, "-Fd", "`"$dumpPath`"","--no-owner", "-a", "-j", "8"
     Write-Host "📦 Restoring data for $db..."
-    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataArgs -NoNewWindow -Wait `
+    $dataRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -a -j 8"
+    Start-Process -FilePath $PG_RESTORE -ArgumentList $dataRestoreCmd -NoNewWindow -Wait `
         -RedirectStandardOutput $outLog `
         -RedirectStandardError $errLog
 
