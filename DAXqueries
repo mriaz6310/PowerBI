@@ -84,15 +84,15 @@ foreach ($db in $databases) {
 
     # --- Schema Restore ---
     Write-Host "📐 Restoring schema for $db..."
-    $schemaRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -s -j 1"
+    $schemaRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -s -j 1"
     Write-Host "Running command: $schemaRestoreCmd"
-    Invoke-Expression $schemaRestoreCmd > $outLog 2> $errLog
+    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -s -j 1 > $outLog 2> $errLog
 
     # --- Data Restore ---
     Write-Host "📦 Restoring data for $db..."
-    $dataRestoreCmd = "`"$PG_RESTORE`" -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd `"$dumpPath`" -a -j 8"
+    $dataRestoreCmd = "$PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -a -j 8"
     Write-Host "Running command: $dataRestoreCmd"
-    Invoke-Expression $dataRestoreCmd > $outLog 2>> $errLog
+    & $PG_RESTORE -h $PGHOST -p $PGPORT -U $PGUSER -d $db --no-owner -Fd $dumpPath -a -j 8 >> $outLog 2>> $errLog
 
     Write-Host "✅ Completed restoring $db. Logs at $outLog and $errLog"
 }
