@@ -196,3 +196,8 @@ echo ✅ Done! Logs at:
 echo %OUTLOG%
 echo %ERRLOG%
 pause
+
+
+
+"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -j 8 -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d db1 --no-owner -Fd "C:\pg_dumps\db1"
+
