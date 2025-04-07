@@ -182,30 +182,23 @@ pause
 @echo off
 setlocal
 
-REM Set your credentials
+REM Set your PostgreSQL credentials
 set PGPASSWORD=your-password
 
-REM Logs (optional)
-set LOGDIR=C:\pg_restore_logs
-if not exist %LOGDIR% mkdir %LOGDIR%
+REM Hardcoded for test — replace with %1 if needed
+set DBNAME=db1
+set PGUSER=rmaadeev
+set PGHOST=your-rds-endpoint.rds.amazonaws.com
+set PGPORT=5432
+set PG_BIN=C:\Program Files\PostgreSQL\16\bin
+set DUMP_PATH=C:\pg_dumps\db1
 
-REM Set DB name and dump path
-set DBNAME=%1
-set DUMP_PATH=C:\pg_dumps\%DBNAME%
-set OUTLOG=%LOGDIR%\%DBNAME%-restore.out.log
-set ERRLOG=%LOGDIR%\%DBNAME%-restore.err.log
+REM Drop and recreate the database
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;"
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;"
 
-REM Drop and recreate DB
-"C:\Program Files\PostgreSQL\16\bin\psql.exe" -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
-"C:\Program Files\PostgreSQL\16\bin\psql.exe" -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d postgres -c "CREATE DATABASE %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
+REM Restore schema + data in one shot (no -s, no -a)
+"%PG_BIN%\pg_restore.exe" -j 8 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%"
 
-REM Restore schema (1:1 with your working command)
-echo Restoring schema...
-"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -j 1 -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -s >> %OUTLOG% 2>> %ERRLOG%
-
-REM Restore data
-echo Restoring data...
-"C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" -j 8 -h your-rds-endpoint.rds.amazonaws.com -p 5432 -U your-username -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" -a >> %OUTLOG% 2>> %ERRLOG%
-
-echo ✅ Restore completed for %DBNAME%
+echo ✅ Restore complete!
 pause
