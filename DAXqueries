@@ -202,3 +202,65 @@ REM Restore schema + data in one shot (no -s, no -a)
 
 echo ✅ Restore complete!
 pause
+
+
+
+
+
+
+
+
+@echo off
+setlocal
+
+REM === PostgreSQL credentials ===
+set PGPASSWORD=your-password
+set DBNAME=db1
+set PGUSER=rmaadeev
+set PGHOST=your-rds-endpoint.rds.amazonaws.com
+set PGPORT=5432
+set PG_BIN=C:\Program Files\PostgreSQL\16\bin
+set DUMP_PATH=C:\pg_dumps\db1
+
+REM === Logging Setup ===
+set LOGDIR=C:\pg_restore_logs
+if not exist %LOGDIR% mkdir %LOGDIR%
+set TIMESTAMP=%DATE:~10,4%-%DATE:~4,2%-%DATE:~7,2%_%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%
+set OUTLOG=%LOGDIR%\%DBNAME%-restore-%TIMESTAMP%.out.log
+set ERRLOG=%LOGDIR%\%DBNAME%-restore-%TIMESTAMP%.err.log
+
+REM === Tuning Parameters ===
+echo SET maintenance_work_mem = '1GB'; > temp_tuning.sql
+echo SET checkpoint_timeout = '30min'; >> temp_tuning.sql
+echo SET max_wal_size = '4GB'; >> temp_tuning.sql
+echo SET autovacuum = off; >> temp_tuning.sql
+
+REM === Drop and recreate the database ===
+echo 🔄 Dropping database %DBNAME%... >> %OUTLOG%
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
+
+echo 🆕 Creating database %DBNAME%... >> %OUTLOG%
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE %DBNAME%;" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Apply tuning settings ===
+echo ⚙️ Applying tuning... >> %OUTLOG%
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% -f temp_tuning.sql >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Run full restore (schema + data) ===
+echo ♻️ Starting restore... >> %OUTLOG%
+"%PG_BIN%\pg_restore.exe" -j 8 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% --no-owner -Fd "%DUMP_PATH%" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Post-restore actions ===
+echo 🔁 Re-enabling autovacuum and analyzing... >> %OUTLOG%
+echo SET autovacuum = on; > temp_post.sql
+echo ANALYZE; >> temp_post.sql
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d %DBNAME% -f temp_post.sql >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Cleanup ===
+del temp_tuning.sql
+del temp_post.sql
+
+echo ✅ Restore completed for %DBNAME%! >> %OUTLOG%
+echo Logs saved to: %OUTLOG%
+pause
+
