@@ -264,3 +264,54 @@ echo ✅ Restore completed for %DBNAME%! >> %OUTLOG%
 echo Logs saved to: %OUTLOG%
 pause
 
+
+
+
+
+
+
+REM === Drop & recreate DB ===
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS \"%DBNAME%\";" >> %OUTLOG% 2>> %ERRLOG%
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE \"%DBNAME%\";" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Apply tuning ===
+echo SET maintenance_work_mem = '1GB'; > temp_tuning.sql
+echo SET checkpoint_timeout = '30min'; >> temp_tuning.sql
+echo SET max_wal_size = '4GB'; >> temp_tuning.sql
+echo SET autovacuum = off; >> temp_tuning.sql
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d "%DBNAME%" -f temp_tuning.sql >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Restore database ===
+"%PG_BIN%\pg_restore.exe" -j 8 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d "%DBNAME%" --no-owner -Fd "%DUMP_PATH%" >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Re-enable autovacuum and analyze ===
+echo SET autovacuum = on; > temp_post.sql
+echo ANALYZE; >> temp_post.sql
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d "%DBNAME%" -f temp_post.sql >> %OUTLOG% 2>> %ERRLOG%
+
+REM === Cleanup ===
+del temp_tuning.sql
+del temp_post.sql
+
+echo ✅ Done restoring %DBNAME%
+exit /b 0
+
+
+
+
+
+@echo off
+setlocal
+
+set DUMPROOT=F:\localdumps\LargeDBs
+set RESTORE_SCRIPT=C:\Users\Muhammad\Documents\restore_single.bat
+
+for /D %%D in ("%DUMPROOT%\*") do (
+    set "DBNAME=%%~nxD"
+    call "%RESTORE_SCRIPT%" !DBNAME!
+)
+
+echo ✅ All databases restored.
+pause
+
+
