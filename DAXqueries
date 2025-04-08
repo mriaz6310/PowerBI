@@ -1,1 +1,8 @@
+aws rds describe-db-clusters --query "DBClusters[*].[DBClusterIdentifier,Engine,EngineMode]" --output table
+
+
+aws rds modify-db-cluster \
+  --db-cluster-identifier your-cluster-id \
+  --serverless-v2-scaling-configuration MinCapacity=32,MaxCapacity=64 \
+  --apply-immediately
 
