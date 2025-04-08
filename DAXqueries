@@ -2,10 +2,12 @@ aws rds describe-db-clusters --query "DBClusters[*].[DBClusterIdentifier,Engine,
 
 
 
-aws rds modify-db-cluster \
-  --db-cluster-identifier your-cluster-id \
-  --serverless-v2-scaling-configuration MinCapacity=32,MaxCapacity=64 \
-  --apply-immediately
+aws rds modify-db-cluster ^
+  --db-cluster-identifier dev-aurora-cluster-01 ^
+  --serverless-v2-scaling-configuration MinCapacity=32,MaxCapacity=64 ^
+  --apply-immediately ^
+  --region us-east-1 ^
+  --no-verify-ssl
 
 aws rds describe-db-clusters \
   --db-cluster-identifier your-cluster-id \
