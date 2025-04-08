@@ -6,3 +6,6 @@ aws rds modify-db-cluster \
   --serverless-v2-scaling-configuration MinCapacity=32,MaxCapacity=64 \
   --apply-immediately
 
+aws rds describe-db-clusters \
+  --db-cluster-identifier your-cluster-id \
+  --query "DBClusters[*].ServerlessV2ScalingConfiguration" --output table
