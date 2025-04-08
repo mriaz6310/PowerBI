@@ -1,4 +1,5 @@
-aws rds describe-db-clusters --query "DBClusters[*].[DBClusterIdentifier,Engine,EngineMode]" --output table
+aws rds describe-db-clusters --query "DBClusters[*].[DBClusterIdentifier,Engine,Status]" --output table --region us-east-1 --no-verify-ssl
+
 
 
 aws rds modify-db-cluster \
