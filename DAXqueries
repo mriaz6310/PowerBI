@@ -12,3 +12,33 @@ aws rds modify-db-cluster ^
 aws rds describe-db-clusters \
   --db-cluster-identifier your-cluster-id \
   --query "DBClusters[*].ServerlessV2ScalingConfiguration" --output table
+
+
+
+
+
+
+
+
+
+SELECT 'CREATE ROLE ' || rolname || 
+       CASE WHEN rolsuper THEN ' SUPERUSER' ELSE '' END ||
+       CASE WHEN rolinherit THEN ' INHERIT' ELSE '' END ||
+       CASE WHEN rolcreaterole THEN ' CREATEROLE' ELSE '' END ||
+       CASE WHEN rolcreatedb THEN ' CREATEDB' ELSE '' END ||
+       CASE WHEN rolcanlogin THEN ' LOGIN' ELSE '' END ||
+       CASE WHEN rolreplication THEN ' REPLICATION' ELSE '' END ||
+       ' PASSWORD NULL;' AS create_role_sql
+FROM pg_roles
+WHERE rolname NOT IN ('rdsadmin', 'rds_replication', 'rds_superuser', 'postgres');
+
+
+
+
+SELECT 
+  'GRANT ' || privilege_type || 
+  ' ON ' || table_schema || '.' || table_name || 
+  ' TO ' || grantee || ';' AS grant_sql
+FROM information_schema.role_table_grants
+WHERE grantee NOT IN ('rdsadmin', 'postgres');
+
