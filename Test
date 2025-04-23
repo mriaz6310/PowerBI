@@ -516,6 +516,82 @@ pg_dump -U postgres -h localhost -p 5432 -d sales_db | gzip | aws s3 cp - s3://y
 
 
 
+Main Script to validate counts for all of the Dbs :
+
+# Connection info
+$hostname = "your-rds-endpoint.rds.amazonaws.com"
+$port = 5432
+$user = "your_user"
+$env:PGPASSWORD = "your_password"
+
+# List of databases (skip templates)
+$databases = psql -U $user -h $hostname -p $port -d postgres -t -c "SELECT datname FROM pg_database WHERE datname NOT IN ('template0', 'template1', 'postgres');"
+
+# Clean up and loop
+foreach ($dbnameRaw in $databases) {
+    $dbname = $dbnameRaw.Trim()
+    Write-Host "`n===== Database: $dbname ====="
+
+    # Get list of tables in public schema (modify schema if needed)
+    $tables = psql -U $user -h $hostname -p $port -d $dbname -t -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';"
+
+    foreach ($tableRaw in $tables) {
+        $table = $tableRaw.Trim()
+        if ($table -ne "") {
+            $count = psql -U $user -h $hostname -p $port -d $dbname -t -c "SELECT COUNT(*) FROM public.\"$table\";"
+            Write-Host "$dbname.$table => $($count.Trim()) rows"
+        }
+    }
+}
+
+
+
+Row Count Validation
+
+SELECT COUNT(*) FROM your_table;
+
+2. Checksum Validation (Data integrity)
+
+SELECT MD5(string_agg(t::text, '')) FROM your_table t;
+
+3. Sample Data Checks
+
+-- First 10 rows
+SELECT * FROM your_table ORDER BY primary_key_column LIMIT 10;
+
+-- Specific known values (e.g., records you know were recently added)
+SELECT * FROM your_table WHERE id = 'abc123';
+
+4. Schema Validation
+
+-- List columns and types
+SELECT column_name, data_type, character_maximum_length
+FROM information_schema.columns
+WHERE table_name = 'your_table'
+ORDER BY ordinal_position;
+
+
+Full DDL
+
+-- For full table DDL (if using pgAdmin or `pg_dump -s`)
+pg_dump -s -t your_table your_db
+
+5. Indexes, Constraints, and Foreign Keys
+-- Indexes
+SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'your_table';
+
+-- Constraints
+
+SELECT conname, contype FROM pg_constraint WHERE conrelid = 'your_table'::regclass;
+
+-- Foreign Keys
+SELECT conname, confrelid::regclass AS referenced_table
+FROM pg_constraint
+WHERE conrelid = 'your_table'::regclass AND contype = 'f';
+
+6.Large Object / TOAST Data Check (if applicable)
+
+SELECT LENGTH(bytea_column) FROM your_table ORDER BY LENGTH(bytea_column) DESC LIMIT 5;
 
 
 
