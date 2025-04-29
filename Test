@@ -599,6 +599,7 @@ SELECT LENGTH(bytea_column) FROM your_table ORDER BY LENGTH(bytea_column) DESC L
 
 SELECT datname AS database_name, pg_catalog.pg_get_userbyid(datdba) AS owner, pg_encoding_to_char(encoding) AS encoding, datcollate AS collation, datctype AS ctype, datistemplate AS is_template, datallowconn AS allow_connections, datconnlimit AS connection_limit, datfrozenxid, dattablespace, datacl FROM pg_database;
 
+tar -cvf - /home/*user_abc | tee /c112-source/backups/all_user_abc.tar > /dev/null
 
 
 
