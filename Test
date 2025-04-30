@@ -603,6 +603,11 @@ tar -cvf - /home/*user_abc | tee /c112-source/backups/all_user_abc.tar > /dev/nu
 
 
 
+Compress-Archive -Path "C:\Users" -DestinationPath "C:\Temp\UsersBackup.zip"
+
+aws s3 cp "C:\Temp\UsersBackup.zip" s3://c100/usersdata/UsersBackup.zip
+
+aws s3 ls s3://c100/usersdata/
 
 
 
