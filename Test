@@ -610,6 +610,12 @@ aws s3 cp "C:\Temp\UsersBackup.zip" s3://c100/usersdata/UsersBackup.zip
 aws s3 ls s3://c100/usersdata/
 
 
+Set-AWSCredential -AccessKey "AKIAEXAMPLEKEY" -SecretKey "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" -StoreAs datasync-user
+
+Write-S3Object -BucketName "c100" -Key "usersdata/UsersBackup.zip" -File "C:\Temp\UsersBackup.zip" -ProfileName "datasync-user"
+
+
+
 
 
 
