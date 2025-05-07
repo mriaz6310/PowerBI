@@ -616,6 +616,11 @@ Write-S3Object -BucketName "c100" -Key "usersdata/UsersBackup.zip" -File "C:\Tem
 
 
 
+Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
+
+
+
+
 
 
 
