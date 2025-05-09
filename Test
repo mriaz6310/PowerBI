@@ -622,17 +622,29 @@ Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
 
 
 SELECT 
-    table_schema,
-    table_name,
-    column_name,
-    ordinal_position,
-    data_type,
-    encoding,
-    distkey,
-    sortkey
-FROM SVV_COLUMNS
-WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-ORDER BY table_schema, table_name, ordinal_position;
+    'CREATE TABLE ' || c.table_schema || '.' || c.table_name || ' (' || 
+    LISTAGG(
+        c.column_name || ' ' || c.data_type || 
+        CASE 
+            WHEN c.character_maximum_length IS NOT NULL THEN '(' || c.character_maximum_length || ')'
+            WHEN c.numeric_precision IS NOT NULL THEN 
+                '(' || c.numeric_precision || 
+                COALESCE(',' || c.numeric_scale, '') || ')'
+            ELSE ''
+        END || 
+        CASE WHEN col.encoding != 'none' THEN ' ENCODE ' || col.encoding ELSE '' END ||
+        CASE WHEN col.distkey THEN ' DISTKEY' ELSE '' END ||
+        CASE WHEN col.sortkey > 0 THEN ' SORTKEY' ELSE '' END
+    , ', ' ORDER BY c.ordinal_position) 
+    || ');' AS ddl
+FROM information_schema.columns c
+JOIN SVV_COLUMNS col
+    ON c.table_schema = col.schema_name
+   AND c.table_name = col.table_name
+   AND c.column_name = col.column_name
+WHERE c.table_schema = 'your_schema'
+GROUP BY c.table_schema, c.table_name
+ORDER BY c.table_schema, c.table_name;
 
 
 
