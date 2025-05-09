@@ -620,26 +620,16 @@ Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
 
 
 
-SELECT
-  'CREATE TABLE ' || table_schema || '.' || table_name || ' (' ||
-  LISTAGG(column_name || ' ' || data_type, ', ') 
-    WITHIN GROUP (ORDER BY ordinal_position) ||
-  ');' AS ddl
-FROM information_schema.columns
-WHERE table_schema = 'your_schema'
-GROUP BY table_schema, table_name;
-
-
-
-
 SELECT 
   table_schema,
   table_name,
-  LISTAGG(column_name || ' ' || data_type, ', ') 
-    WITHIN GROUP (ORDER BY ordinal_position) AS column_definitions
+  ordinal_position,
+  column_name,
+  data_type,
+  character_maximum_length,
+  numeric_precision,
+  numeric_scale,
+  is_nullable
 FROM information_schema.columns
 WHERE table_schema = 'your_schema'
-GROUP BY table_schema, table_name;
-
-
-
+ORDER BY table_schema, table_name, ordinal_position;
