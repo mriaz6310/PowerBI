@@ -620,17 +620,17 @@ Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
 
 
 
-
 SELECT
     table_schema,
     table_name,
-    'CREATE TABLE ' || table_schema || '.' || table_name || E'\n(\n' ||
+    'CREATE TABLE ' || table_schema || '.' || table_name || ' (\n' ||
     LISTAGG(
         '    ' || column_name || ' ' || data_type,
-        E',\n'
-    ) || E'\n);' AS ddl
+        ',\n'
+    ) || '\n);' AS ddl
 FROM information_schema.columns
 WHERE table_schema = 'your_schema'
 GROUP BY table_schema, table_name
 ORDER BY table_schema, table_name;
+
 
