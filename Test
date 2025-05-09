@@ -620,9 +620,8 @@ Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
 
 
 
-
 SELECT 
-    'CREATE TABLE ' || table_schema || '.' || table_name || ' (' || column_list || ');' AS ddl
+    'CREATE TABLE ' || c.table_schema || '.' || c.table_name || ' (' || column_list || ');' AS ddl
 FROM (
     SELECT 
         c.table_schema,
@@ -631,20 +630,21 @@ FROM (
             c.column_name || ' ' || c.data_type ||
             CASE 
                 WHEN c.character_maximum_length IS NOT NULL THEN '(' || c.character_maximum_length || ')'
-                WHEN c.numeric_precision IS NOT NULL THEN '(' || c.numeric_precision || 
-                    COALESCE(',' || c.numeric_scale, '') || ')' 
-                ELSE '' 
+                WHEN c.numeric_precision IS NOT NULL THEN 
+                    '(' || c.numeric_precision || 
+                    COALESCE(',' || c.numeric_scale::VARCHAR, '') || ')'
+                ELSE ''
             END ||
-            CASE WHEN col.encoding != 'none' THEN ' ENCODE ' || col.encoding ELSE '' END ||
-            CASE WHEN col.distkey THEN ' DISTKEY' ELSE '' END ||
-            CASE WHEN col.sortkey > 0 THEN ' SORTKEY' ELSE '' END,
+            CASE WHEN sc.encoding != 'none' THEN ' ENCODE ' || sc.encoding ELSE '' END ||
+            CASE WHEN sc.distkey THEN ' DISTKEY' ELSE '' END ||
+            CASE WHEN sc.sortkey > 0 THEN ' SORTKEY' ELSE '' END,
             ', '
         ) AS column_list
     FROM information_schema.columns c
-    JOIN SVV_COLUMNS col
-        ON c.table_schema = col.schema_name
-       AND c.table_name = col.table_name
-       AND c.column_name = col.column_name
+    JOIN SVV_COLUMNS sc
+        ON c.table_schema = sc.schema_name
+       AND c.table_name = sc.table_name
+       AND c.column_name = sc.column_name
     WHERE c.table_schema = 'your_schema'
     GROUP BY c.table_schema, c.table_name
 ) AS ddl_statements
