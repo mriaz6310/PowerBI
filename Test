@@ -620,16 +620,57 @@ Get-ChildItem -Path "C:\" -Recurse -Filter aws.exe -ErrorAction SilentlyContinue
 
 
 
-SELECT 
-  table_schema,
-  table_name,
-  ordinal_position,
-  column_name,
-  data_type,
-  character_maximum_length,
-  numeric_precision,
-  numeric_scale,
-  is_nullable
-FROM information_schema.columns
-WHERE table_schema = 'your_schema'
-ORDER BY table_schema, table_name, ordinal_position;
+# Set your PostgreSQL environment variables
+$env:PGPASSWORD = "your_password_here"
+$PGUSER = "masteradm"
+$PGHOST = "hshehj-instance-1.hdhdhjehe.ad-g-west-1.rds.amazonaws.com"
+$PGPORT = 5432
+$PGDUMP_HOST = "ushdhehhd-instance-1.cyeurjneb.us-west-1.rds.amazonaws.com"
+$PGDUMP_PORT = 5422
+
+# Get list of databases excluding templates
+$databases = psql -U $PGUSER -h $PGHOST -p $PGPORT -d postgres -t -c "SELECT datname FROM pg_database WHERE datname NOT IN ('template0', 'template1');"
+
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    $backupPath = "G:\home\folder\$dbname"
+
+    # Create backup directory if it doesn't exist
+    if (!(Test-Path $backupPath)) {
+        New-Item -ItemType Directory -Path $backupPath | Out-Null
+    }
+
+    # Run pg_dump with parallel jobs
+    pg_dump -U $PGUSER -h $PGDUMP_HOST -p $PGDUMP_PORT -F d -j 10 -d $dbname -f $backupPath
+}
+
+
+while ($true) {
+    Write-Host "Still alive at $(Get-Date)"
+    Start-Sleep -Seconds 300  # Sends a message every 5 minutes
+}
+
+
+foreach ($dbname in $databases) {
+    $dbname = $dbname.Trim()
+    $backupPath = "G:\home\folder\$dbname"
+
+    if (!(Test-Path $backupPath)) {
+        New-Item -ItemType Directory -Path $backupPath | Out-Null
+    }
+
+    Write-Host "Starting dump for $dbname at $(Get-Date)"
+    
+    pg_dump -U $PGUSER -h $PGDUMP_HOST -p $PGDUMP_PORT -F d -j 10 -d $dbname -f $backupPath
+
+    Write-Host "Completed dump for $dbname at $(Get-Date)"
+    Start-Sleep -Seconds 10  # Optional short pause
+}
+
+
+
+pg_dump -U user -h host -d mydb --schema-only -f schema_prev.sql
+
+pg_dump -U user -h host -d mydb --schema-only -f schema_now.sql
+
+diff schema_prev.sql schema_now.sql
