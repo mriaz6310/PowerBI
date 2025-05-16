@@ -919,3 +919,73 @@ for /D %%D in ("%DUMP_ROOT%\*") do (
 echo.
 echo === All databases restored successfully ===
 exit /b 0
+
+
+
+
+@echo off
+setlocal EnableDelayedExpansion
+
+REM === PostgreSQL Credentials ===
+set PGPASSWORD=YourPasswordHere
+set PGUSER=YourUsername
+set PGHOST=your.rds.hostname.amazonaws.com
+set PGPORT=5432
+set PG_BIN=C:\Program Files\PostgreSQL\16\bin
+
+REM === Set the DB name you want to restore (same name as dump folder) ===
+set DBNAME=your_database_name_here
+
+REM === Dump and log directories ===
+set DUMP_ROOT=X:\Test_Hyra\esa
+set DUMP_PATH=%DUMP_ROOT%\%DBNAME%
+set LOGDIR=C:\Users\ahsan\Documents\pg_restore_logs
+
+REM === Validate dump path ===
+if not exist "%DUMP_PATH%" (
+    echo ❌ ERROR: Dump folder "%DUMP_PATH%" not found.
+    exit /b 1
+)
+
+REM === Create log folder if it doesn't exist ===
+if not exist "%LOGDIR%" (
+    mkdir "%LOGDIR%"
+)
+
+REM === Generate timestamp ===
+for /f "tokens=1-4 delims=/ " %%a in ("%date%") do (
+    set yyyy=%%d
+    set mm=%%b
+    set dd=%%c
+)
+for /f "tokens=1-2 delims=:." %%a in ("%time%") do (
+    set hh=%%a
+    set nn=%%b
+)
+set TIMESTAMP=%yyyy%-%mm%-%dd%_%hh%%nn%
+set OUTLOG=%LOGDIR%\%DBNAME%-restore-%TIMESTAMP%.out.log
+set ERRLOG=%LOGDIR%\%DBNAME%-restore-%TIMESTAMP%.err.log
+
+echo.
+echo === Starting restore for database [%DBNAME%]
+echo Dump Path: %DUMP_PATH%
+echo Log File: %OUTLOG%
+
+REM === Force disconnect active sessions ===
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres ^
+-c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%DBNAME%' AND pid <> pg_backend_pid();" >> "%OUTLOG%" 2>> "%ERRLOG%"
+
+REM === Drop and recreate the database ===
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres ^
+-c "DROP DATABASE IF EXISTS \"%DBNAME%\";" >> "%OUTLOG%" 2>> "%ERRLOG%"
+
+"%PG_BIN%\psql.exe" -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres ^
+-c "CREATE DATABASE \"%DBNAME%\";" >> "%OUTLOG%" 2>> "%ERRLOG%"
+
+REM === Run restore ===
+"%PG_BIN%\pg_restore.exe" -j 32 -h %PGHOST% -p %PGPORT% -U %PGUSER% ^
+-d "%DBNAME%" --no-owner -Fd "%DUMP_PATH%" --verbose >> "%OUTLOG%" 2>> "%ERRLOG%"
+
+echo ✅ Done restoring %DBNAME%
+exit /b 0
+
