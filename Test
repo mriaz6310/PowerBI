@@ -800,16 +800,6 @@ foreach ($folder in $folders) {
 
 
 
-@echo off
-setlocal enabledelayedexpansion
-
-REM === PostgreSQL Credentials ===
-set PGPASSWORD=YourPasswordHere
-set PGUSER=YourUsername
-set PGHOST=your.rds.or.ec2.hostname
-set PGPORT=5432
-set PG_BIN="C:\Program Files\PostgreSQL\16\bin"
-
 REM === Paths ===
 set DUMP_ROOT=X:\Test_Hyra\esa
 set LOGDIR=C:\Users\ahsan\Documents\pg_restore_logs
