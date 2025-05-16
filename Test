@@ -989,3 +989,10 @@ REM === Run restore ===
 echo ✅ Done restoring %DBNAME%
 exit /b 0
 
+
+
+
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d postgres -c "SHOW config_file;"
+
+
