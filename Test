@@ -737,23 +737,57 @@ SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DBNAME'
 
 
 
-# Drop DB (after forcing connections to close)
-& "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
-    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DBNAME' AND pid <> pg_backend_pid();" >> $LOG_PATH 2>&1
+# PostgreSQL credentials and server info for ServerA
+$env:PGPASSWORD = "YourPasswordHere"
+$PGUSER = "YourUsername"
+$PGHOST = "your.server.a.hostname"
+$PGPORT = "5432"
+$PG_BIN = "C:\Program Files\PostgreSQL\16\bin"  # Adjust if using a different version
+$DUMP_ROOT = "C:\Pg_Dumps\AllDumps\ServerA"
+$LOG_DIR = "C:\Pg_Dumps\AllDumps\logs\ServerA"
 
-& "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
-    -c "DROP DATABASE IF EXISTS $DBNAME;" >> $LOG_PATH 2>&1
+# Ensure the log directory exists
+if (-not (Test-Path -Path $LOG_DIR)) {
+    New-Item -Path $LOG_DIR -ItemType Directory | Out-Null
+}
 
-& "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
-    -c "CREATE DATABASE $DBNAME;" >> $LOG_PATH 2>&1
+# Loop through each database subfolder (each is a directory-format pg_dump)
+$folders = Get-ChildItem -Path $DUMP_ROOT -Directory
 
-# Restore DB
-& "$PG_BIN\pg_restore.exe" `
-    -h $PGHOST `
-    -p $PGPORT `
-    -U $PGUSER `
-    -d $DBNAME `
-    -Fd "$DUMP_PATH" `
-    -j 8 `
-    --no-owner `
-    --verbose >> $LOG_PATH 2>&1
+foreach ($folder in $folders) {
+    $DBNAME = $folder.Name
+    $DUMP_PATH = $folder.FullName
+    $LOG_PATH = Join-Path $LOG_DIR "$DBNAME-restore.log"
+
+    Write-Host "`n=== Starting restore for database [$DBNAME] ==="
+
+    try {
+        # Force terminate any active connections to the database
+        & "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
+            -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DBNAME' AND pid <> pg_backend_pid();" >> $LOG_PATH 2>&1
+
+        # Drop the database if it exists
+        & "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
+            -c "DROP DATABASE IF EXISTS $DBNAME;" >> $LOG_PATH 2>&1
+
+        # Recreate the database
+        & "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
+            -c "CREATE DATABASE $DBNAME;" >> $LOG_PATH 2>&1
+
+        # Run pg_restore from directory format using parallel jobs
+        & "$PG_BIN\pg_restore.exe" `
+            -h $PGHOST `
+            -p $PGPORT `
+            -U $PGUSER `
+            -d $DBNAME `
+            -Fd "$DUMP_PATH" `
+            -j 8 `
+            --no-owner `
+            --verbose >> $LOG_PATH 2>&1
+
+        Write-Host "✅ Restore complete for [$DBNAME]. Log: $LOG_PATH"
+    }
+    catch {
+        Write-Host "❌ Restore failed for [$DBNAME]. Check log at $LOG_PATH"
+    }
+}
