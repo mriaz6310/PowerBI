@@ -674,3 +674,59 @@ pg_dump -U user -h host -d mydb --schema-only -f schema_prev.sql
 pg_dump -U user -h host -d mydb --schema-only -f schema_now.sql
 
 diff schema_prev.sql schema_now.sql
+
+
+
+
+
+
+# PostgreSQL credentials and server info
+$env:PGPASSWORD = "YourPasswordHere"
+$PGUSER = "YourUsername"
+$PGHOST = "your.server.hostname"
+$PGPORT = "5432"
+$PG_BIN = "C:\Program Files\PostgreSQL\16\bin"  # Adjust to your installed version
+$DUMP_ROOT = "C:\Pg_Dumps\AllDumps\ServerA"
+$LOG_DIR = "C:\Pg_Dumps\AllDumps\logs\ServerA"
+
+# Ensure log directory exists
+if (-not (Test-Path -Path $LOG_DIR)) {
+    New-Item -Path $LOG_DIR -ItemType Directory | Out-Null
+}
+
+# Loop through each subdirectory (each representing a DB)
+$folders = Get-ChildItem -Path $DUMP_ROOT -Directory
+
+foreach ($folder in $folders) {
+    $DBNAME = $folder.Name
+    $DUMP_PATH = $folder.FullName
+    $LOG_PATH = Join-Path $LOG_DIR "$DBNAME-restore.log"
+
+    Write-Host "`n=== Starting restore of [$DBNAME] from [$DUMP_PATH] ==="
+
+    try {
+        # Drop database if exists
+        & "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
+            -c "DROP DATABASE IF EXISTS $DBNAME;" >> $LOG_PATH 2>&1
+
+        # Recreate database
+        & "$PG_BIN\psql.exe" -h $PGHOST -p $PGPORT -U $PGUSER -d postgres `
+            -c "CREATE DATABASE $DBNAME;" >> $LOG_PATH 2>&1
+
+        # Run pg_restore
+        & "$PG_BIN\pg_restore.exe" `
+            -h $PGHOST `
+            -p $PGPORT `
+            -U $PGUSER `
+            -d $DBNAME `
+            -Fd "$DUMP_PATH" `
+            -j 8 `
+            --no-owner `
+            --verbose >> $LOG_PATH 2>&1
+
+        Write-Host "✅ [$DBNAME] restore complete. Log: $LOG_PATH"
+    }
+    catch {
+        Write-Host "❌ Restore failed for [$DBNAME]. Check log at $LOG_PATH"
+    }
+}
