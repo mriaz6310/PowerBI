@@ -791,3 +791,71 @@ foreach ($folder in $folders) {
         Write-Host "❌ Restore failed for [$DBNAME]. Check log at $LOG_PATH"
     }
 }
+
+
+
+
+
+
+
+
+
+@echo off
+setlocal enabledelayedexpansion
+
+REM === PostgreSQL Credentials ===
+set PGPASSWORD=YourPasswordHere
+set PGUSER=YourUsername
+set PGHOST=your.rds.or.ec2.hostname
+set PGPORT=5432
+set PG_BIN="C:\Program Files\PostgreSQL\16\bin"
+
+REM === Paths ===
+set DUMP_ROOT=X:\Test_Hyra\esa
+set LOGDIR=C:\Users\ahsan\Documents\pg_restore_logs
+
+REM === Create Log Directory If Needed ===
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+
+REM === List of DBs to restore (match folder names under DUMP_ROOT) ===
+set DBS=db1 db2 db3 db4
+
+for %%D in (%DBS%) do (
+    set DBNAME=%%D
+    set DUMP_PATH=%DUMP_ROOT%\!DBNAME!
+
+    REM === Timestamp for logs ===
+    for /f "tokens=1-4 delims=/ " %%a in ("%date%") do (
+        set yyyy=%%d
+        set mm=%%b
+        set dd=%%c
+    )
+    for /f "tokens=1-2 delims=:." %%a in ("%time%") do (
+        set hh=%%a
+        set nn=%%b
+    )
+    set TIMESTAMP=%yyyy%-%mm%-%dd%_%hh%%nn%
+    set OUTLOG=%LOGDIR%\!DBNAME!-restore-!TIMESTAMP!.out.log
+    set ERRLOG=%LOGDIR%\!DBNAME!-restore-!TIMESTAMP!.err.log
+
+    echo.
+    echo === Restoring !DBNAME! ===
+    echo Log: !OUTLOG!
+
+    REM === Force Disconnect ===
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '!DBNAME!' AND pid <> pg_backend_pid();" >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    REM === Drop & Recreate DB ===
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS \"!DBNAME!\";" >> "!OUTLOG!" 2>> "!ERRLOG!"
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE \"!DBNAME!\";" >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    REM === Restore ===
+    %PG_BIN%\pg_restore.exe -j 32 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d "!DBNAME!" --no-owner -Fd "!DUMP_PATH!" --verbose >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    echo ✅ Done restoring !DBNAME!
+)
+
+echo.
+echo === All databases processed ===
+exit /b 0
+
