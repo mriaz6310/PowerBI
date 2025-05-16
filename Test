@@ -849,3 +849,52 @@ echo.
 echo === All databases processed ===
 exit /b 0
 
+
+
+
+
+
+if not exist "%LOGDIR%" (
+    mkdir "%LOGDIR%"
+)
+
+REM === Loop through all subfolders in DUMP_ROOT ===
+for /D %%D in ("%DUMP_ROOT%\*") do (
+    set "DBNAME=%%~nxD"
+    set "DUMP_PATH=%%D"
+
+    REM === Get timestamp for log files ===
+    for /f "tokens=1-4 delims=/ " %%a in ("%date%") do (
+        set yyyy=%%d
+        set mm=%%b
+        set dd=%%c
+    )
+    for /f "tokens=1-2 delims=:." %%a in ("%time%") do (
+        set hh=%%a
+        set nn=%%b
+    )
+    set TIMESTAMP=!yyyy!-!mm!-!dd!_!hh!!nn!
+    set OUTLOG=%LOGDIR%\!DBNAME!-restore-!TIMESTAMP!.out.log
+    set ERRLOG=%LOGDIR%\!DBNAME!-restore-!TIMESTAMP!.err.log
+
+    echo.
+    echo === Starting restore for !DBNAME! ===
+    echo Log file: !OUTLOG!
+
+    REM === Force disconnect active sessions ===
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '!DBNAME!' AND pid <> pg_backend_pid();" >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    REM === Drop and recreate database ===
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "DROP DATABASE IF EXISTS \"!DBNAME!\";" >> "!OUTLOG!" 2>> "!ERRLOG!"
+    %PG_BIN%\psql.exe -h %PGHOST% -p %PGPORT% -U %PGUSER% -d postgres -c "CREATE DATABASE \"!DBNAME!\";" >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    REM === Restore from directory format ===
+    %PG_BIN%\pg_restore.exe -j 32 -h %PGHOST% -p %PGPORT% -U %PGUSER% -d "!DBNAME!" --no-owner -Fd "!DUMP_PATH!" --verbose >> "!OUTLOG!" 2>> "!ERRLOG!"
+
+    echo ✅ Done restoring !DBNAME!
+)
+
+echo.
+echo === All databases restored successfully ===
+exit /b 0
+
