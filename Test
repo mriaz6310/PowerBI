@@ -996,3 +996,34 @@ exit /b 0
 & "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d postgres -c "SHOW config_file;"
 
 
+
+
+SELECT 
+  'CREATE ROLE ' || rolname ||
+  CASE WHEN rolcanlogin THEN ' LOGIN' ELSE '' END ||
+  CASE WHEN rolsuper THEN ' SUPERUSER' ELSE '' END ||
+  CASE WHEN rolcreaterole THEN ' CREATEROLE' ELSE '' END ||
+  CASE WHEN rolcreatedb THEN ' CREATEDB' ELSE '' END ||
+  CASE WHEN rolinherit THEN ' INHERIT' ELSE '' END ||
+  CASE WHEN rolreplication THEN ' REPLICATION' ELSE '' END ||
+  CASE WHEN rolbypassrls THEN ' BYPASSRLS' ELSE '' END ||
+  ' PASSWORD ' || quote_literal(rolpassword) || ';' AS create_role_sql
+FROM pg_authid
+WHERE rolname NOT IN ('rdsadmin', 'rdsproxy', 'postgres')  -- exclude AWS internal users or system users
+  AND rolname <> current_user;
+
+
+SELECT 
+  'GRANT ' || privilege_type || ' ON ' || table_schema || '.' || table_name || ' TO ' || grantee || ';'
+FROM information_schema.role_table_grants
+WHERE grantee NOT IN ('postgres', 'rdsadmin', 'rdsproxy');
+
+
+SELECT 'GRANT USAGE ON SCHEMA ' || nspname || ' TO ' || r.rolname || ';'
+FROM pg_roles r
+CROSS JOIN pg_namespace
+WHERE nspname NOT LIKE 'pg_%' AND nspname <> 'information_schema'
+  AND r.rolname NOT IN ('postgres', 'rdsadmin');
+
+
+
