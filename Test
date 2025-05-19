@@ -1026,4 +1026,17 @@ WHERE nspname NOT LIKE 'pg_%' AND nspname <> 'information_schema'
   AND r.rolname NOT IN ('postgres', 'rdsadmin');
 
 
+SELECT 
+  'CREATE ROLE "' || rolname || '"' ||
+  CASE WHEN rolcanlogin THEN ' LOGIN' ELSE '' END ||
+  CASE WHEN rolsuper THEN ' SUPERUSER' ELSE '' END ||
+  CASE WHEN rolcreaterole THEN ' CREATEROLE' ELSE '' END ||
+  CASE WHEN rolcreatedb THEN ' CREATEDB' ELSE '' END ||
+  CASE WHEN rolinherit THEN ' INHERIT' ELSE '' END ||
+  CASE WHEN rolreplication THEN ' REPLICATION' ELSE '' END ||
+  CASE WHEN rolbypassrls THEN ' BYPASSRLS' ELSE '' END ||
+  ';' AS create_role_sql
+FROM pg_roles
+WHERE rolname NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
+ORDER BY rolname;
 
