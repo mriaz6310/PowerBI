@@ -26,12 +26,11 @@ ORDER BY 1;
 
 SELECT 
   n.nspname AS schema_name,
-  r.rolname AS grantee,
-  has_schema_privilege(r.rolname, n.nspname, 'USAGE') AS has_usage,
-  has_schema_privilege(r.rolname, n.nspname, 'CREATE') AS has_create
+  'postgrestestadm' AS grantee,
+  has_schema_privilege('postgrestestadm', n.nspname, 'USAGE') AS has_usage,
+  has_schema_privilege('postgrestestadm', n.nspname, 'CREATE') AS has_create
 FROM pg_namespace n
-CROSS JOIN pg_roles r
-WHERE r.rolname = 'postgrestestadm'
-  AND n.nspname NOT LIKE 'pg_%'
+WHERE n.nspname NOT LIKE 'pg_%'
   AND n.nspname <> 'information_schema'
-ORDER BY schema_name;
+ORDER BY n.nspname;
+
