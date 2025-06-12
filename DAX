@@ -34,3 +34,18 @@ WHERE n.nspname NOT LIKE 'pg_%'
   AND n.nspname <> 'information_schema'
 ORDER BY n.nspname;
 
+
+
+
+
+SELECT
+    tablespace_name,
+    ROUND(SUM(bytes) / 1024 / 1024 / 1024, 2) AS size_gb
+FROM
+    dba_segments
+GROUP BY
+    tablespace_name
+ORDER BY
+    size_gb DESC;
+
+
