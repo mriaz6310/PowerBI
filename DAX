@@ -72,3 +72,40 @@ END;
 /
 
 
+
+
+DECLARE
+  l_dp_handle NUMBER;
+BEGIN
+  -- Open export job (FULL export)
+  l_dp_handle := DBMS_DATAPUMP.OPEN(
+    operation => 'EXPORT',
+    job_mode  => 'FULL',
+    job_name  => 'MY_EXPORT_JOB'
+  );
+
+  -- Add dump file
+  DBMS_DATAPUMP.ADD_FILE(
+    handle    => l_dp_handle,
+    filename  => 'my_export.dmp',
+    directory => 'DATA_PUMP_DIR'
+  );
+
+  -- Add log file
+  DBMS_DATAPUMP.ADD_FILE(
+    handle    => l_dp_handle,
+    filename  => 'my_export.log',
+    directory => 'DATA_PUMP_DIR',
+    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
+  );
+
+  -- Start job
+  DBMS_DATAPUMP.START_JOB(l_dp_handle);
+
+  -- Detach so job runs in background
+  DBMS_DATAPUMP.DETACH(l_dp_handle);
+END;
+/
+
+
+
