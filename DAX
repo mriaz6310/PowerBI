@@ -38,28 +38,25 @@ ORDER BY n.nspname;
 
 
 
-SELECT
-    tablespace_name,
-    ROUND(SUM(bytes) / 1024 / 1024 / 1024, 2) AS size_gb
-FROM
-    dba_segments
-GROUP BY
-    tablespace_name
-ORDER BY
-    size_gb DESC;
+
+BEGIN
+  rdsadmin.rdsadmin_util.create_directory(
+    p_directory_name => 'DATA_PUMP_DIR'
+  );
+END;
+/
+
+-- Then run your Data Pump job via PL/SQL or SQL Developer
 
 
-
-expdp 'admin/YourPasswordHere@//my-oracle-db.abcd1234.us-gov-west-1.rds.amazonaws.com:1521/ORCL' \
-    directory=DATA_PUMP_DIR \
-    dumpfile=my_export_%U.dmp \
-    logfile=my_export.log \
-    filesize=2G \
-    parallel=2 \
-    full=y
-
-
-expdp 'admin/YourPasswordHere@//my-oracle-db.abcd1234.us-gov-west-1.rds.amazonaws.com:1521/ORCL' directory=DATA_PUMP_DIR dumpfile=my_export_%U.dmp logfile=my_export.log filesize=2G parallel=2 full=y
-
-
+BEGIN
+  rdsadmin.rdsadmin_s3_tasks.upload_to_s3(
+    p_directory     => 'DATA_PUMP_DIR',
+    p_s3_bucket     => 'my-oracle-exports',
+    p_s3_prefix     => 'exports/',
+    p_filename      => 'my_export.dmp',
+    p_overwrite     => TRUE
+  );
+END;
+/
 
