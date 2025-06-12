@@ -60,3 +60,15 @@ END;
 /
 
 
+DECLARE
+  h1 NUMBER;
+BEGIN
+  h1 := DBMS_DATAPUMP.OPEN(operation => 'EXPORT', job_mode => 'FULL', job_name => 'MY_EXPORT_JOB', version => 'LATEST');
+  DBMS_DATAPUMP.ADD_FILE(handle => h1, filename => 'my_export01.dmp', directory => 'DATA_PUMP_DIR', filesize => '2G');
+  DBMS_DATAPUMP.SET_PARALLEL(handle => h1, degree => 2);
+  DBMS_DATAPUMP.START_JOB(handle => h1);
+  DBMS_DATAPUMP.WAIT_FOR_JOB(handle => h1);
+END;
+/
+
+
