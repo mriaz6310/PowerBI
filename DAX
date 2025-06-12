@@ -116,5 +116,31 @@ END;
 
 
 
+BEGIN
+  DBMS_CLOUD.CREATE_CREDENTIAL(
+    credential_name => 'MY_S3_CRED',
+    username        => 'YOUR_AWS_ACCESS_KEY_ID',
+    password        => 'YOUR_AWS_SECRET_ACCESS_KEY'
+  );
+END;
+/
+
+
+BEGIN
+  DBMS_CLOUD.PUT_OBJECT(
+    credential_name => 'MY_S3_CRED',
+    object_uri      => 'https://s3.amazonaws.com/your-s3-bucket-name/oracle_exports/my_export.dmp',
+    directory_name  => 'DATA_PUMP_DIR',
+    file_name       => 'my_export.dmp'
+  );
+END;
+/
+
+"s3:PutObject",
+"s3:GetObject",
+"s3:DeleteObject"
+
+
+
 
 
