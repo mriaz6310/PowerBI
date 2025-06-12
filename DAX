@@ -49,3 +49,14 @@ ORDER BY
     size_gb DESC;
 
 
+
+expdp 'admin/YourPasswordHere@//my-oracle-db.abcd1234.us-gov-west-1.rds.amazonaws.com:1521/ORCL' \
+    directory=DATA_PUMP_DIR \
+    dumpfile=my_export_%U.dmp \
+    logfile=my_export.log \
+    filesize=2G \
+    parallel=2 \
+    full=y
+
+
+
