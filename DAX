@@ -147,5 +147,12 @@ export PATH=$ORACLE_HOME:$PATH
 export LD_LIBRARY_PATH=$ORACLE_HOME
 
 
+expdp DEVDB_USER/PASSWORD@//source-rds-endpoint:1521/ORCL \
+dumpfile=/data/oracle_dumps/my_export_%U.dmp \
+logfile=/data/oracle_dumps/my_export.log \
+full=y \
+parallel=4
+
+
 
 
