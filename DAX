@@ -50,13 +50,13 @@ END;
 
 
 BEGIN
-  rdsadmin.rdsadmin_s3_tasks.upload_to_s3(
-    p_directory     => 'DATA_PUMP_DIR',
-    p_s3_bucket     => 'my-oracle-exports',
-    p_s3_prefix     => 'exports/',
-    p_filename      => 'my_export.dmp',
-    p_overwrite     => TRUE
+  rdsadmin.rdsadmin_util.export_rds_datafile(
+    p_directory_name => 'DATA_PUMP_DIR',
+    p_prefix         => 'my_export',
+    p_parallel       => 2,
+    p_compression    => 'ALL'
   );
 END;
 /
+
 
