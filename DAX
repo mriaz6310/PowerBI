@@ -156,3 +156,13 @@ parallel=4
 
 
 
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema = 'sde'
+  AND table_name = 'gdb_release'
+  AND table_catalog = 'geogajh';
+
+
+
+
+
