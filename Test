@@ -1019,11 +1019,17 @@ FROM information_schema.role_table_grants
 WHERE grantee NOT IN ('postgres', 'rdsadmin', 'rdsproxy');
 
 
-SELECT 'GRANT USAGE ON SCHEMA ' || nspname || ' TO ' || r.rolname || ';'
-FROM pg_roles r
-CROSS JOIN pg_namespace
-WHERE nspname NOT LIKE 'pg_%' AND nspname <> 'information_schema'
+SELECT 
+  'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) || ' TO ' || quote_ident(r.rolname) || ';'
+FROM 
+  pg_roles r
+CROSS JOIN 
+  pg_namespace n
+WHERE 
+  n.nspname NOT LIKE 'pg_%' 
+  AND n.nspname <> 'information_schema'
   AND r.rolname NOT IN ('postgres', 'rdsadmin');
+
 
 
 SELECT 
