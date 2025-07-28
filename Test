@@ -1046,3 +1046,13 @@ FROM pg_roles
 WHERE rolname NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
 ORDER BY rolname;
 
+
+SELECT 
+    SUM(size) * 8 / 1024 AS TotalSizeMB,
+    ROUND(SUM(size) * 8.0 / 1024 / 1024, 2) AS TotalSizeGB
+FROM 
+    sys.master_files
+WHERE 
+    type_desc IN ('ROWS', 'LOG');
+
+
