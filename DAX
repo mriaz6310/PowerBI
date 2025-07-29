@@ -231,13 +231,12 @@ ORDER BY backup_start_date DESC;
 
 
 
--- Script out linked servers
 SELECT 
     'EXEC master.dbo.sp_addlinkedserver 
         @server = N''' + name + ''', 
-        @srvproduct = N''' + srvproduct + ''', 
-        @provider = N''' + provider + ''', 
-        @datasrc = N''' + datasource + ''';' AS CreateLinkedServer
+        @srvproduct = N''' + ISNULL(srvproduct, '') + ''', 
+        @provider = N''' + ISNULL(provider, '') + ''', 
+        @datasrc = N''' + ISNULL(data_source, '') + ''';'
 FROM sys.servers
 WHERE is_linked = 1;
 
@@ -245,13 +244,18 @@ WHERE is_linked = 1;
 SELECT 
     'EXEC master.dbo.sp_addlinkedsrvlogin 
         @rmtsrvname = N''' + s.name + ''', 
-        @useself = ''' + CASE l.useself WHEN 1 THEN 'TRUE' ELSE 'FALSE' END + ''', 
-        @locallogin = ' + ISNULL('N''' + l.localname + '''', 'NULL') + ', 
-        @rmtuser = N''' + ISNULL(l.rmtuser, '') + ''', 
-        @rmtpassword = N''' + ISNULL(l.rmtpassword, '') + ''';'
-AS LoginMapping
+        @useself = ''' + CASE l.uses_self WHEN 1 THEN 'TRUE' ELSE 'FALSE' END + ''', 
+        @locallogin = ' + 
+            CASE 
+                WHEN l.local_principal_id IS NULL THEN 'NULL' 
+                ELSE 'N''' + p.name + '''' 
+            END + ', 
+        @rmtuser = N''' + ISNULL(l.remote_name, '') + ''', 
+        @rmtpassword = N''' + ISNULL(l.remote_password, '') + ''';'
 FROM sys.linked_logins l
-JOIN sys.servers s ON l.server_id = s.server_id;
+JOIN sys.servers s ON l.server_id = s.server_id
+LEFT JOIN sys.server_principals p ON l.local_principal_id = p.principal_id;
+
 
 
 -- Use this script for each login
