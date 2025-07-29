@@ -231,3 +231,38 @@ ORDER BY backup_start_date DESC;
 
 
 
+-- Script out linked servers
+SELECT 
+    'EXEC master.dbo.sp_addlinkedserver 
+        @server = N''' + name + ''', 
+        @srvproduct = N''' + srvproduct + ''', 
+        @provider = N''' + provider + ''', 
+        @datasrc = N''' + datasource + ''';' AS CreateLinkedServer
+FROM sys.servers
+WHERE is_linked = 1;
+
+
+SELECT 
+    'EXEC master.dbo.sp_addlinkedsrvlogin 
+        @rmtsrvname = N''' + s.name + ''', 
+        @useself = ''' + CASE l.useself WHEN 1 THEN 'TRUE' ELSE 'FALSE' END + ''', 
+        @locallogin = ' + ISNULL('N''' + l.localname + '''', 'NULL') + ', 
+        @rmtuser = N''' + ISNULL(l.rmtuser, '') + ''', 
+        @rmtpassword = N''' + ISNULL(l.rmtpassword, '') + ''';'
+AS LoginMapping
+FROM sys.linked_logins l
+JOIN sys.servers s ON l.server_id = s.server_id;
+
+
+-- Use this script for each login
+-- First, generate for all SQL logins
+SELECT 'CREATE LOGIN [' + sp.name + '] WITH PASSWORD = 0x' + 
+       CONVERT(VARCHAR(MAX), sl.password_hash, 2) + ' HASHED, CHECK_POLICY = OFF, DEFAULT_DATABASE = [' + sp.default_database_name + '];'
+FROM sys.sql_logins AS sl
+JOIN sys.server_principals AS sp ON sl.principal_id = sp.principal_id
+WHERE sp.name NOT LIKE '##%';  -- exclude system-generated
+
+
+
+
+
