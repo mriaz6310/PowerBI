@@ -205,5 +205,29 @@ DEALLOCATE db_cursor;
 
 
 
+ALTER DATABASE CART SET RECOVERY SIMPLE;
+DBCC SHRINKFILE (
+    (SELECT name FROM sys.master_files WHERE database_id = DB_ID('CART') AND type_desc = 'LOG'),
+    1
+);
+
+
+BACKUP DATABASE [CART]
+TO DISK = 'C:\Backups\CART.bak'
+WITH FORMAT, INIT, NAME = 'Full Backup of CART', COMPRESSION;
+
+
+SELECT 
+    database_name,
+    backup_start_date,
+    backup_finish_date,
+    type AS BackupType
+FROM msdb.dbo.backupset
+WHERE backup_start_date >= CAST(GETDATE() AS DATE)
+  AND type = 'D'  -- D = Full backup
+ORDER BY backup_start_date DESC;
+
+
+
 
 
