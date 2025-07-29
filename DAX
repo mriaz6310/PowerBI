@@ -164,5 +164,46 @@ WHERE table_schema = 'sde'
 
 
 
+DECLARE @name NVARCHAR(256);      -- database name
+DECLARE @path NVARCHAR(512);      -- backup path
+DECLARE @fileName NVARCHAR(512);  -- full .bak path
+DECLARE @sql NVARCHAR(MAX);       -- dynamic SQL
+
+-- Set your backup directory path (make sure this exists on the SQL Server host)
+SET @path = 'C:\Backups\';
+
+-- Cursor to loop through all user databases (exclude system DBs)
+DECLARE db_cursor CURSOR FOR
+SELECT name 
+FROM sys.databases 
+WHERE name NOT IN ('master', 'model', 'msdb', 'tempdb');
+
+OPEN db_cursor;
+FETCH NEXT FROM db_cursor INTO @name;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @fileName = @path + @name + '.bak';
+
+    SET @sql = '
+    BACKUP DATABASE [' + @name + ']
+    TO DISK = N''' + @fileName + '''
+    WITH FORMAT,
+         INIT,
+         NAME = N''Full Backup of ' + @name + ''',
+         COMPRESSION;
+    ';
+    
+    PRINT 'Backing up: ' + @name;
+    EXEC sp_executesql @sql;
+
+    FETCH NEXT FROM db_cursor INTO @name;
+END
+
+CLOSE db_cursor;
+DEALLOCATE db_cursor;
+
+
+
 
 
