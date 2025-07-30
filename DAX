@@ -269,4 +269,61 @@ WHERE sp.name NOT LIKE '##%';  -- exclude system-generated
 
 
 
+-- Replace this with your own backup directory
+DECLARE @BackupDir NVARCHAR(255) = N'D:\SQLBackups\';
+
+-- Table of databases and their corresponding .bak files
+DECLARE @Restores TABLE (
+    DatabaseName NVARCHAR(128),
+    BackupFile NVARCHAR(255)
+);
+
+-- Add your databases and .bak files here
+INSERT INTO @Restores (DatabaseName, BackupFile)
+VALUES 
+    ('Database1', 'Database1.bak'),
+    ('Database2', 'Database2.bak'),
+    ('Database3', 'Database3.bak');
+    -- Add more as needed
+
+DECLARE @DBName NVARCHAR(128), @BackupFile NVARCHAR(255), @SQL NVARCHAR(MAX);
+
+DECLARE restore_cursor CURSOR FOR
+SELECT DatabaseName, BackupFile FROM @Restores;
+
+OPEN restore_cursor;
+FETCH NEXT FROM restore_cursor INTO @DBName, @BackupFile;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Restoring: ' + @DBName;
+
+    SET @SQL = '
+    RESTORE DATABASE [' + @DBName + ']
+    FROM DISK = N''' + @BackupDir + @BackupFile + '''
+    WITH 
+        FILE = 1,
+        MOVE ''' + @DBName + ''' TO ''D:\SQLData\' + @DBName + '.mdf'',
+        MOVE ''' + @DBName + '_log'' TO ''D:\SQLLogs\' + @DBName + '_log.ldf'',
+        REPLACE,
+        STATS = 5;
+    ';
+    
+    PRINT @SQL;
+    EXEC sp_executesql @SQL;
+
+    FETCH NEXT FROM restore_cursor INTO @DBName, @BackupFile;
+END
+
+CLOSE restore_cursor;
+DEALLOCATE restore_cursor;
+
+
+
+RESTORE FILELISTONLY 
+FROM DISK = N'D:\SQLBackups\Database1.bak';
+
+
+
+
 
