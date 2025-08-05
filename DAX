@@ -373,28 +373,26 @@ ORDER BY table_name, constraint_type;
 
 
 SELECT
-    c.relname AS constraint_name,
+    con.conrelid::regclass AS table_name,
     CASE con.contype
         WHEN 'p' THEN 'PRIMARY KEY'
         WHEN 'f' THEN 'FOREIGN KEY'
         WHEN 'u' THEN 'UNIQUE'
     END AS constraint_type,
-    ns.nspname AS schema_name,
-    t.relname AS table_name,
+    con.conkey AS attnum_array,
     LISTAGG(a.attname, ', ') WITHIN GROUP (ORDER BY a.attnum) AS column_names
 FROM pg_constraint con
-JOIN pg_class t
-    ON con.conrelid = t.oid
 JOIN pg_namespace ns
-    ON t.relnamespace = ns.oid
-JOIN pg_class c
-    ON con.oid = c.oid -- constraint name
+    ON ns.oid = con.connamespace
+JOIN pg_class cl
+    ON cl.oid = con.conrelid
 JOIN pg_attribute a
-    ON a.attrelid = t.oid
+    ON a.attrelid = cl.oid
    AND a.attnum = ANY (con.conkey)
 WHERE ns.nspname = 'car_dm'
   AND con.contype IN ('p', 'f', 'u')
-GROUP BY c.relname, con.contype, ns.nspname, t.relname
+GROUP BY con.conrelid, con.contype, con.conkey
 ORDER BY table_name, constraint_type;
+
 
 
