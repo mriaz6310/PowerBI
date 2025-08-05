@@ -373,26 +373,21 @@ ORDER BY table_name, constraint_type;
 
 
 SELECT
-    con.conrelid::regclass AS table_name,
-    CASE con.contype
-        WHEN 'p' THEN 'PRIMARY KEY'
-        WHEN 'f' THEN 'FOREIGN KEY'
-        WHEN 'u' THEN 'UNIQUE'
-    END AS constraint_type,
-    con.conkey AS attnum_array,
-    LISTAGG(a.attname, ', ') WITHIN GROUP (ORDER BY a.attnum) AS column_names
-FROM pg_constraint con
-JOIN pg_namespace ns
-    ON ns.oid = con.connamespace
-JOIN pg_class cl
-    ON cl.oid = con.conrelid
-JOIN pg_attribute a
-    ON a.attrelid = cl.oid
-   AND a.attnum = ANY (con.conkey)
-WHERE ns.nspname = 'car_dm'
-  AND con.contype IN ('p', 'f', 'u')
-GROUP BY con.conrelid, con.contype, con.conkey
-ORDER BY table_name, constraint_type;
+    tc.constraint_name,
+    tc.constraint_type,
+    tc.table_schema,
+    tc.table_name,
+    LISTAGG(kcu.column_name, ', ') 
+        WITHIN GROUP (ORDER BY kcu.ordinal_position) AS column_names
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+WHERE tc.table_schema = 'car_dm'
+  AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
+GROUP BY tc.constraint_name, tc.constraint_type, tc.table_schema, tc.table_name
+ORDER BY tc.table_name, tc.constraint_type;
+
 
 
 
