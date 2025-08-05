@@ -371,22 +371,19 @@ WHERE n.nspname = 'car_dm'
 GROUP BY con.conname, con.contype, n.nspname, cl.relname
 ORDER BY table_name, constraint_type;
 
-
 SELECT
-    tc.constraint_name,
-    tc.constraint_type,
-    tc.table_schema,
-    tc.table_name,
-    LISTAGG(kcu.column_name, ', ') 
-        WITHIN GROUP (ORDER BY kcu.ordinal_position) AS column_names
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-    ON tc.constraint_name = kcu.constraint_name
-    AND tc.table_schema = kcu.table_schema
-WHERE tc.table_schema = 'car_dm'
-  AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
-GROUP BY tc.constraint_name, tc.constraint_type, tc.table_schema, tc.table_name
-ORDER BY tc.table_name, tc.constraint_type;
+  constraint_name,
+  constraint_type,
+  table_schema,
+  table_name,
+  LISTAGG(column_name, ', ') WITHIN GROUP (ORDER BY ordinal_position) AS columns
+FROM information_schema.key_column_usage
+JOIN information_schema.table_constraints USING (constraint_name, table_schema, table_name)
+WHERE table_schema = 'car_dm'
+  AND constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
+GROUP BY constraint_name, constraint_type, table_schema, table_name
+ORDER BY table_name, constraint_type;
+
 
 
 
