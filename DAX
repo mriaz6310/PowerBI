@@ -346,3 +346,13 @@ WHERE n.nspname = 'car_dm'
 
 
 
+
+SELECT
+    n.nspname AS schema_name,
+    p.proname AS function_name,
+    pg_catalog.pg_get_function_identity_arguments(p.oid) AS arguments
+FROM pg_proc p
+JOIN pg_namespace n ON p.pronamespace = n.oid
+WHERE n.nspname = 'car_dm'
+  AND p.proname = 'abc_crop';
+
