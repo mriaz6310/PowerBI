@@ -385,6 +385,15 @@ GROUP BY constraint_name, constraint_type, table_schema, table_name
 ORDER BY table_name, constraint_type;
 
 
+SELECT
+  tc.constraint_name,
+  tc.constraint_type,
+  tc.table_schema,
+  tc.table_name
+FROM information_schema.table_constraints tc
+WHERE tc.table_schema = 'car_dm'
+  AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
+ORDER BY tc.table_name, tc.constraint_type;
 
 
 
