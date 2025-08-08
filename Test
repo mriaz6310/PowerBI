@@ -1073,3 +1073,13 @@ GRANT USAGE ON SCHEMA schema_name TO GROUP business;
 
 
 
+SELECT 
+  'ALTER GROUP business ADD USER ' || usename || ';' AS alter_stmt
+FROM 
+  pg_group g
+JOIN 
+  pg_user u ON u.usesysid = ANY(g.grolist)
+WHERE 
+  g.groname = 'business';
+
+
