@@ -369,9 +369,9 @@ WHERE
     grantee NOT IN ('postgres', 'rdsadmin');
 
 
+
 SELECT
-    'GRANT ' || privilege_type || ' ON SEQUENCE "' || sequence_schema || '"."' || sequence_name || '" TO "' || grantee || '";' AS grant_stmt
-FROM
-    information_schema.role_sequence_grants
-WHERE
-    grantee NOT IN ('postgres', 'rdsadmin');
+    'GRANT ' || privilege_type || ' ON TABLE "' || table_schema || '"."' || table_name || '" TO "' || grantee || '";'
+FROM information_schema.role_table_grants
+WHERE grantee NOT IN ('postgres', 'rdsadmin');
+
