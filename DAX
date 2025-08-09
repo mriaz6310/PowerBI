@@ -347,33 +347,31 @@ WHERE n.nspname = 'car_dm'
 
 
 
-SELECT 
-    'GRANT USAGE ON SCHEMA "' || nspname || '" TO "' || grantee || '";' AS grant_stmt
-FROM 
-    information_schema.role_schema_grants rsg
-JOIN 
-    pg_namespace n ON rsg.schema_name = n.nspname
-WHERE 
-    grantee NOT IN ('postgres', 'rdsadmin')
-ORDER BY 
-    grantee, nspname;
+SELECT
+    'GRANT USAGE ON SCHEMA "' || n.nspname || '" TO "' || r.rolname || '";' AS grant_stmt
+FROM
+    pg_namespace n
+JOIN
+    pg_roles r
+ON
+    n.nspowner <> r.oid
+WHERE
+    n.nspname NOT LIKE 'pg_%'
+    AND n.nspname <> 'information_schema'
+    AND has_schema_privilege(r.rolname, n.nspname, 'USAGE');
 
 
-SELECT 
-    'GRANT ' || privilege_type || ' ON ' || table_schema || '.' || table_name || ' TO "' || grantee || '";' AS grant_stmt
-FROM 
+SELECT
+    'GRANT ' || privilege_type || ' ON "' || table_schema || '"."' || table_name || '" TO "' || grantee || '";' AS grant_stmt
+FROM
     information_schema.role_table_grants
-WHERE 
-    grantee NOT IN ('postgres', 'rdsadmin')
-ORDER BY 
-    grantee, table_schema, table_name;
+WHERE
+    grantee NOT IN ('postgres', 'rdsadmin');
 
 
-SELECT 
-    'GRANT ' || privilege_type || ' ON SEQUENCE ' || sequence_schema || '.' || sequence_name || ' TO "' || grantee || '";' AS grant_stmt
-FROM 
+SELECT
+    'GRANT ' || privilege_type || ' ON SEQUENCE "' || sequence_schema || '"."' || sequence_name || '" TO "' || grantee || '";' AS grant_stmt
+FROM
     information_schema.role_sequence_grants
-WHERE 
-    grantee NOT IN ('postgres', 'rdsadmin')
-ORDER BY 
-    grantee, sequence_schema, sequence_name;
+WHERE
+    grantee NOT IN ('postgres', 'rdsadmin');
