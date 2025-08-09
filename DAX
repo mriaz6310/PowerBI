@@ -347,53 +347,33 @@ WHERE n.nspname = 'car_dm'
 
 
 
-SELECT
-    con.conname AS constraint_name,
-    CASE con.contype
-        WHEN 'p' THEN 'PRIMARY KEY'
-        WHEN 'f' THEN 'FOREIGN KEY'
-        WHEN 'u' THEN 'UNIQUE'
-    END AS constraint_type,
-    n.nspname AS schema_name,
-    cl.relname AS table_name,
-    string_agg(att.attname, ', ' ORDER BY att.attnum) AS column_names
-FROM pg_constraint con
-JOIN pg_class cl
-    ON con.conrelid = cl.oid
-JOIN pg_namespace n
-    ON cl.relnamespace = n.oid
-JOIN unnest(con.conkey) AS colnum
-    JOIN pg_attribute att
-        ON att.attrelid = cl.oid
-       AND att.attnum = colnum
-WHERE n.nspname = 'car_dm'
-  AND con.contype IN ('p', 'f', 'u')
-GROUP BY con.conname, con.contype, n.nspname, cl.relname
-ORDER BY table_name, constraint_type;
-
-SELECT
-  constraint_name,
-  constraint_type,
-  table_schema,
-  table_name,
-  LISTAGG(column_name, ', ') WITHIN GROUP (ORDER BY ordinal_position) AS columns
-FROM information_schema.key_column_usage
-JOIN information_schema.table_constraints USING (constraint_name, table_schema, table_name)
-WHERE table_schema = 'car_dm'
-  AND constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
-GROUP BY constraint_name, constraint_type, table_schema, table_name
-ORDER BY table_name, constraint_type;
+SELECT 
+    'GRANT USAGE ON SCHEMA "' || nspname || '" TO "' || grantee || '";' AS grant_stmt
+FROM 
+    information_schema.role_schema_grants rsg
+JOIN 
+    pg_namespace n ON rsg.schema_name = n.nspname
+WHERE 
+    grantee NOT IN ('postgres', 'rdsadmin')
+ORDER BY 
+    grantee, nspname;
 
 
-SELECT
-  tc.constraint_name,
-  tc.constraint_type,
-  tc.table_schema,
-  tc.table_name
-FROM information_schema.table_constraints tc
-WHERE tc.table_schema = 'car_dm'
-  AND tc.constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE')
-ORDER BY tc.table_name, tc.constraint_type;
+SELECT 
+    'GRANT ' || privilege_type || ' ON ' || table_schema || '.' || table_name || ' TO "' || grantee || '";' AS grant_stmt
+FROM 
+    information_schema.role_table_grants
+WHERE 
+    grantee NOT IN ('postgres', 'rdsadmin')
+ORDER BY 
+    grantee, table_schema, table_name;
 
 
-
+SELECT 
+    'GRANT ' || privilege_type || ' ON SEQUENCE ' || sequence_schema || '.' || sequence_name || ' TO "' || grantee || '";' AS grant_stmt
+FROM 
+    information_schema.role_sequence_grants
+WHERE 
+    grantee NOT IN ('postgres', 'rdsadmin')
+ORDER BY 
+    grantee, sequence_schema, sequence_name;
