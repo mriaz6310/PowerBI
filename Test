@@ -1083,3 +1083,16 @@ WHERE
   g.groname = 'business';
 
 
+
+PGUSER=kahs PGPASSWORD='test123' pg_dump \
+  --schema-only \
+  --table='*' \
+  --no-owner \
+  --no-privileges \
+  --section=pre-data \
+  -h localhost \
+  -p 6432 \
+  -d administrative \
+  | grep -E "CREATE SERVER|CREATE USER MAPPING|CREATE FOREIGN TABLE|CREATE EXTENSION" \
+  > fdw_objects.sql
+
