@@ -1096,3 +1096,11 @@ PGUSER=kahs PGPASSWORD='test123' pg_dump \
   | grep -E "CREATE SERVER|CREATE USER MAPPING|CREATE FOREIGN TABLE|CREATE EXTENSION" \
   > fdw_objects.sql
 
+
+-- Base tables only (incl. partitioned parents)
+SELECT n.nspname AS schema, c.relname AS table
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'payment' AND c.relkind IN ('r','p')  -- r=table, p=partitioned table
+ORDER BY 1,2;
+
