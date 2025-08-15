@@ -472,3 +472,31 @@ BEGIN
     END;
   END LOOP;
 END$$;
+
+
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT rolname
+    FROM pg_roles
+    WHERE rolname <> current_user
+      AND rolname !~ '^(pg_|rds_)'              -- skip system / AWS-managed
+      AND rolname NOT IN ('postgres')           -- extra safety if present
+  LOOP
+    BEGIN
+      EXECUTE format('ALTER ROLE %I WITH LOGIN CREATEDB', r.rolname);
+      RAISE NOTICE 'Set LOGIN and CREATEDB on role %', r.rolname;
+    EXCEPTION
+      WHEN insufficient_privilege
+        THEN RAISE NOTICE 'Skipping % (insufficient privilege): %', r.rolname, SQLERRM;
+      WHEN feature_not_supported
+        THEN RAISE NOTICE 'Skipping % (feature not supported): %', r.rolname, SQLERRM;
+      WHEN OTHERS
+        THEN RAISE NOTICE 'Skipping % due to: %', r.rolname, SQLERRM;
+    END;
+  END LOOP;
+END$$;
+
