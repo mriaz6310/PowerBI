@@ -446,30 +446,56 @@ WHERE schemaname NOT IN ('pg_catalog','information_schema');
 
 
 
-#run this if the role exists and have to check and change the grants:
-SELECT format(
-$fmt$
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %L) THEN
-    CREATE ROLE %I;
-  END IF;
+#run this to drop roles
+SELECT rolname
+FROM pg_roles
+WHERE rolname !~ '^(pg_|rds_)'      -- skip system roles
+  AND rolname <> current_user       -- keep yourself
+  AND rolname <> 'postgres'         -- extra safety if present
+ORDER BY rolname;
 
-  ALTER ROLE %I WITH%s%s%s%s%s%s;
-END $$;
-$fmt$,
-  r.rolname,         -- %L literal for existence check
-  r.rolname,         -- %I identifier for CREATE ROLE
-  r.rolname,         -- %I identifier for ALTER ROLE
-  CASE WHEN r.rolcanlogin   THEN ' LOGIN'        ELSE ' NOLOGIN'        END,
-  CASE WHEN r.rolcreatedb   THEN ' CREATEDB'     ELSE ' NOCREATEDB'     END,
-  CASE WHEN r.rolcreaterole THEN ' CREATEROLE'   ELSE ' NOCREATEROLE'   END,
-  CASE WHEN r.rolreplication THEN ' REPLICATION' ELSE ' NOREPLICATION'  END,
-  CASE WHEN r.rolbypassrls  THEN ' BYPASSRLS'    ELSE ' NOBYPASSRLS'    END,
-  CASE WHEN r.rolconnlimit <> -1 THEN ' CONNECTION LIMIT '||r.rolconnlimit ELSE '' END
-) AS ddl
-FROM pg_roles r
-WHERE r.rolname !~ '^(pg_|rds_)';
+
+DO $$
+DECLARE
+    r   RECORD;
+    m1  RECORD;
+    m2  RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid, rolname
+    FROM pg_roles
+    WHERE rolname !~ '^(pg_|rds_)'
+      AND rolname <> current_user
+      AND rolname <> 'postgres'
+  LOOP
+    -- 1) Revoke this role from its members (anyone who has been granted r.rolname)
+    FOR m1 IN
+      SELECT pg_get_userbyid(m.member) AS member
+      FROM pg_auth_members m
+      WHERE m.roleid = r.oid
+    LOOP
+      EXECUTE format('REVOKE %I FROM %I', r.rolname, m1.member);
+    END LOOP;
+
+    -- 2) Revoke memberships this role has in other roles
+    FOR m2 IN
+      SELECT pg_get_userbyid(m.roleid) AS granted_role
+      FROM pg_auth_members m
+      WHERE m.member = r.oid
+    LOOP
+      EXECUTE format('REVOKE %I FROM %I', m2.granted_role, r.rolname);
+    END LOOP;
+
+    -- 3) Reassign objects and drop all privileges owned by this role
+    EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
+    EXECUTE format('DROP OWNED BY %I', r.rolname);
+
+    -- 4) Finally drop the role
+    EXECUTE format('DROP ROLE %I', r.rolname);
+  END LOOP;
+END$$;
+
+
 
 
 
