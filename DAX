@@ -375,3 +375,72 @@ SELECT
 FROM information_schema.role_table_grants
 WHERE grantee NOT IN ('postgres', 'rdsadmin');
 
+
+
+
+
+
+
+SELECT
+  'CREATE ROLE "'||r.rolname||'"'||
+  CASE WHEN r.rolcanlogin   THEN ' LOGIN'        ELSE ' NOLOGIN'        END||
+  CASE WHEN r.rolcreatedb   THEN ' CREATEDB'     ELSE ' NOCREATEDB'     END||
+  CASE WHEN r.rolcreaterole THEN ' CREATEROLE'   ELSE ' NOCREATEROLE'   END||
+  CASE WHEN r.rolreplication THEN ' REPLICATION' ELSE '' END||
+  CASE WHEN r.rolbypassrls  THEN ' BYPASSRLS'    ELSE '' END||
+  CASE WHEN r.rolconnlimit <> -1 THEN ' CONNECTION LIMIT '||r.rolconnlimit ELSE '' END
+  ||';' AS ddl
+FROM pg_roles r
+WHERE r.rolname !~ '^(pg_|rds_)';
+
+
+SELECT
+  'GRANT '||quote_ident(pg_get_userbyid(m.roleid))||' TO '||
+  quote_ident(pg_get_userbyid(m.member))||
+  CASE WHEN m.admin_option THEN ' WITH ADMIN OPTION' ELSE '' END||';' AS ddl
+FROM pg_auth_members m
+JOIN pg_roles r1 ON r1.oid = m.roleid
+JOIN pg_roles r2 ON r2.oid = m.member
+WHERE r1.rolname !~ '^(pg_|rds_)' AND r2.rolname !~ '^(pg_|rds_)';
+
+
+-- One GRANT per privilege per role per database
+WITH db_acl AS (
+  SELECT d.datname,
+         (aclexplode(d.datacl)).*  -- grantee, grantor, privs, grantable
+  FROM pg_database d
+  WHERE d.datistemplate = false
+)
+SELECT 'GRANT '||p.privilege_type||' ON DATABASE '||quote_ident(datname)||' TO '||
+       COALESCE(quote_ident(grantee::regrole::text),'PUBLIC')||
+       CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END||';' AS ddl
+FROM (
+  SELECT datname, grantee, privilege_type,
+         (grant_options LIKE '%'+privilege_type+'%') AS is_grantable
+  FROM (
+    SELECT datname, grantee,
+           unnest(privileges) AS privilege_type,
+           array_to_string(grant_options, ',') AS grant_options
+    FROM (
+      SELECT datname, grantee,
+             (privs).privileges   AS privileges,
+             (privs).grant_options AS grant_options
+      FROM (
+        SELECT datname, grantee,
+               (aclexplode(datacl)).privs AS privs
+        FROM pg_database
+        WHERE datistemplate = false
+      ) x
+    ) y
+  ) z
+) p
+ORDER BY datname;
+
+
+SELECT
+  'GRANT '||privilege_type||' ON SCHEMA '||
+  quote_ident(schemaname)||' TO '||quote_ident(grantee)||';' AS ddl
+FROM information_schema.schema_privileges
+WHERE schemaname NOT IN ('pg_catalog','information_schema');
+
+
