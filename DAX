@@ -540,3 +540,35 @@ FROM roles r
 CROSS JOIN schemas s
 WHERE has_schema_privilege(r.rolname, s.nspname, 'CREATE')
 ORDER BY s.nspname, r.rolname;
+
+
+
+
+
+-- SOURCE DB -> copy output -> run on TARGET DB
+WITH roles AS (
+  SELECT rolname
+  FROM pg_roles
+  WHERE rolname !~ '^(pg_|rds_)'
+),
+objs AS (
+  SELECT n.nspname AS schemaname, c.relname AS objname
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('r','v','m','f')                       -- table, view, matview, foreign table
+    AND n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%'
+)
+SELECT format(
+         'GRANT %s ON %I.%I TO %I;',
+         v.priv, o.schemaname, o.objname, r.rolname
+       ) AS ddl
+FROM roles r
+CROSS JOIN objs o
+CROSS JOIN LATERAL (VALUES
+  ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRIGGER'), ('REFERENCES')
+) AS v(priv)
+WHERE has_table_privilege(r.rolname, format('%I.%I', o.schemaname, o.objname), v.priv)
+ORDER BY o.schemaname, o.objname, r.rolname, v.priv;
+
+
