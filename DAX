@@ -458,45 +458,62 @@ ORDER BY rolname;
 DO $$
 DECLARE
     r   RECORD;
-    m1  RECORD;
-    m2  RECORD;
 BEGIN
   FOR r IN
     SELECT oid, rolname
     FROM pg_roles
-    WHERE rolname !~ '^(pg_|rds_)'
-      AND rolname <> current_user
-      AND rolname <> 'postgres'
+    WHERE rolname !~ '^(pg_|rds_)'      -- skip system roles
+      AND rolname <> current_user       -- don't touch yourself
+      AND rolname <> 'postgres'         -- extra safety if present
   LOOP
-    -- 1) Revoke this role from its members (anyone who has been granted r.rolname)
-    FOR m1 IN
-      SELECT pg_get_userbyid(m.member) AS member
-      FROM pg_auth_members m
-      WHERE m.roleid = r.oid
-    LOOP
-      EXECUTE format('REVOKE %I FROM %I', r.rolname, m1.member);
-    END LOOP;
+    BEGIN
+      -- 0) Make sure we can act on the role: become a member first
+      EXECUTE format('GRANT %I TO %I', r.rolname, current_user);
 
-    -- 2) Revoke memberships this role has in other roles
-    FOR m2 IN
-      SELECT pg_get_userbyid(m.roleid) AS granted_role
-      FROM pg_auth_members m
-      WHERE m.member = r.oid
-    LOOP
-      EXECUTE format('REVOKE %I FROM %I', m2.granted_role, r.rolname);
-    END LOOP;
+      -- 1) Reassign all objects this role owns in THIS DATABASE to you
+      EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
 
-    -- 3) Reassign objects and drop all privileges owned by this role
-    EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
-    EXECUTE format('DROP OWNED BY %I', r.rolname);
+      -- 2) Drop all privileges this role holds in THIS DATABASE
+      EXECUTE format('DROP OWNED BY %I', r.rolname);
 
-    -- 4) Finally drop the role
-    EXECUTE format('DROP ROLE %I', r.rolname);
+      -- 3) Clean up any role memberships to avoid dependency errors
+      -- Revoke this role from its members
+      EXECUTE $q$WITH m AS (
+         SELECT pg_get_userbyid(roleid)  AS role_name,
+                pg_get_userbyid(member)  AS member_name
+         FROM pg_auth_members
+      )
+      SELECT string_agg(format('REVOKE %I FROM %I;', role_name, member_name), E'\n')
+      FROM m WHERE role_name = $q$ || quote_ident(r.rolname) || $q$;$q$;
+
+      -- Revoke memberships this role has in other roles
+      EXECUTE $q$WITH m AS (
+         SELECT pg_get_userbyid(roleid)  AS role_name,
+                pg_get_userbyid(member)  AS member_name
+         FROM pg_auth_members
+      )
+      SELECT string_agg(format('REVOKE %I FROM %I;', role_name, $q$ || quote_ident(r.rolname) || $q$), E'\n')
+      FROM m WHERE member_name = $q$ || quote_ident(r.rolname) || $q$;$q$;
+
+      -- 4) Drop the role
+      EXECUTE format('DROP ROLE %I', r.rolname);
+
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Skipping role % due to: %', r.rolname, SQLERRM;
+      -- Try to undo the temporary membership if it was granted
+      BEGIN
+        EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
+      EXCEPTION WHEN OTHERS THEN
+        -- ignore
+        NULL;
+      END;
+    END;
+
+    -- Best-effort cleanup of the temp membership
+    BEGIN
+      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
   END LOOP;
 END$$;
-
-
-
-
-
-
