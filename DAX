@@ -504,24 +504,35 @@ END$$;
 
 #grants and access
 
--- Extract GRANTs for all non-system schemas
+-- Extract schema-level GRANTs (USAGE/CREATE) for all non-system schemas
+WITH schema_acl AS (
+  SELECT
+    n.nspname AS schema_name,
+    x.grantee,            -- OID; 0 means PUBLIC
+    x.privileges,         -- text[]
+    x.grant_options       -- text[]
+  FROM pg_namespace n
+  LEFT JOIN LATERAL
+    aclexplode(COALESCE(n.nspacl, '{}'::aclitem[]))
+      AS x(grantee, grantor, privileges, grant_options)
+    ON TRUE
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
+)
 SELECT
   format(
     'GRANT %s ON SCHEMA %I TO %s%s;',
-    p.privilege_type,                          -- USAGE or CREATE
-    p.schema_name,
-    CASE WHEN p.grantee = 'PUBLIC'
+    priv,                                   -- 'USAGE' or 'CREATE'
+    schema_name,
+    CASE WHEN grantee = 0
          THEN 'PUBLIC'
-         ELSE quote_ident(p.grantee)
+         ELSE quote_ident((SELECT rolname FROM pg_roles WHERE oid = grantee))
     END,
-    CASE WHEN p.is_grantable = 'YES'
-         THEN ' WITH GRANT OPTION'
-         ELSE ''
-    END
+    CASE WHEN priv = ANY (grant_options) THEN ' WITH GRANT OPTION' ELSE '' END
   ) AS ddl
-FROM information_schema.schema_privileges p
-LEFT JOIN pg_roles r ON r.rolname = p.grantee
-WHERE p.schema_name NOT IN ('pg_catalog','information_schema','pg_toast')
-  -- keep PUBLIC, but skip internal roles
-  AND (p.grantee = 'PUBLIC' OR r.rolname !~ '^(pg_|rds_)')
-ORDER BY p.schema_name, p.grantee, p.privilege_type;
+FROM (
+  SELECT schema_name, grantee, grant_options, unnest(privileges) AS priv
+  FROM schema_acl
+) t
+-- keep PUBLIC; skip pg_/rds_ roles
+WHERE (grantee = 0 OR (SELECT rolname FROM pg_roles WHERE oid = grantee) !~ '^(pg_|rds_)')
+ORDER BY schema_name, grantee, priv;
