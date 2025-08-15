@@ -444,3 +444,33 @@ FROM information_schema.schema_privileges
 WHERE schemaname NOT IN ('pg_catalog','information_schema');
 
 
+
+
+#run this if the role exists and have to check and change the grants:
+SELECT format(
+$fmt$
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %L) THEN
+    CREATE ROLE %I;
+  END IF;
+
+  ALTER ROLE %I WITH%s%s%s%s%s%s;
+END $$;
+$fmt$,
+  r.rolname,         -- %L literal for existence check
+  r.rolname,         -- %I identifier for CREATE ROLE
+  r.rolname,         -- %I identifier for ALTER ROLE
+  CASE WHEN r.rolcanlogin   THEN ' LOGIN'        ELSE ' NOLOGIN'        END,
+  CASE WHEN r.rolcreatedb   THEN ' CREATEDB'     ELSE ' NOCREATEDB'     END,
+  CASE WHEN r.rolcreaterole THEN ' CREATEROLE'   ELSE ' NOCREATEROLE'   END,
+  CASE WHEN r.rolreplication THEN ' REPLICATION' ELSE ' NOREPLICATION'  END,
+  CASE WHEN r.rolbypassrls  THEN ' BYPASSRLS'    ELSE ' NOBYPASSRLS'    END,
+  CASE WHEN r.rolconnlimit <> -1 THEN ' CONNECTION LIMIT '||r.rolconnlimit ELSE '' END
+) AS ddl
+FROM pg_roles r
+WHERE r.rolname !~ '^(pg_|rds_)';
+
+
+
+
