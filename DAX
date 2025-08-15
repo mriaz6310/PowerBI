@@ -504,39 +504,24 @@ END$$;
 
 #grants and access
 
-WITH db_acl AS (
-  SELECT
-    d.datname,
-    x.grantee,          -- OID (0 means PUBLIC)
-    x.grantor,
-    x.privileges,       -- text[]
-    x.grant_options     -- text[]
-  FROM pg_database d
-  LEFT JOIN LATERAL
-    aclexplode(COALESCE(d.datacl, '{}'::aclitem[]))
-      AS x(grantee, grantor, privileges, grant_options)
-    ON TRUE
-  WHERE d.datistemplate = false
-)
+-- Extract GRANTs for all non-system schemas
 SELECT
   format(
-    'GRANT %s ON DATABASE %I TO %s%s;',
-    priv,                               -- privilege_type (e.g., CONNECT, CREATE, TEMPORARY)
-    datname,
-    CASE
-      WHEN grantee = 0 THEN 'PUBLIC'    -- 0 means PUBLIC
-      ELSE quote_ident((SELECT rolname FROM pg_roles WHERE oid = grantee))
+    'GRANT %s ON SCHEMA %I TO %s%s;',
+    p.privilege_type,                          -- USAGE or CREATE
+    p.schema_name,
+    CASE WHEN p.grantee = 'PUBLIC'
+         THEN 'PUBLIC'
+         ELSE quote_ident(p.grantee)
     END,
-    CASE
-      WHEN priv = ANY (grant_options) THEN ' WITH GRANT OPTION' ELSE ''
+    CASE WHEN p.is_grantable = 'YES'
+         THEN ' WITH GRANT OPTION'
+         ELSE ''
     END
   ) AS ddl
-FROM (
-  SELECT
-    datname, grantee, grant_options,
-    unnest(privileges) AS priv
-  FROM db_acl
-) t
-WHERE priv IS NOT NULL
-ORDER BY datname, grantee, priv;
-
+FROM information_schema.schema_privileges p
+LEFT JOIN pg_roles r ON r.rolname = p.grantee
+WHERE p.schema_name NOT IN ('pg_catalog','information_schema','pg_toast')
+  -- keep PUBLIC, but skip internal roles
+  AND (p.grantee = 'PUBLIC' OR r.rolname !~ '^(pg_|rds_)')
+ORDER BY p.schema_name, p.grantee, p.privilege_type;
