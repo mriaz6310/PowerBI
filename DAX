@@ -500,3 +500,43 @@ BEGIN
   END LOOP;
 END$$;
 
+
+
+#grants and access
+
+WITH db_acl AS (
+  SELECT
+    d.datname,
+    x.grantee,          -- OID (0 means PUBLIC)
+    x.grantor,
+    x.privileges,       -- text[]
+    x.grant_options     -- text[]
+  FROM pg_database d
+  LEFT JOIN LATERAL
+    aclexplode(COALESCE(d.datacl, '{}'::aclitem[]))
+      AS x(grantee, grantor, privileges, grant_options)
+    ON TRUE
+  WHERE d.datistemplate = false
+)
+SELECT
+  format(
+    'GRANT %s ON DATABASE %I TO %s%s;',
+    priv,                               -- privilege_type (e.g., CONNECT, CREATE, TEMPORARY)
+    datname,
+    CASE
+      WHEN grantee = 0 THEN 'PUBLIC'    -- 0 means PUBLIC
+      ELSE quote_ident((SELECT rolname FROM pg_roles WHERE oid = grantee))
+    END,
+    CASE
+      WHEN priv = ANY (grant_options) THEN ' WITH GRANT OPTION' ELSE ''
+    END
+  ) AS ddl
+FROM (
+  SELECT
+    datname, grantee, grant_options,
+    unnest(privileges) AS priv
+  FROM db_acl
+) t
+WHERE priv IS NOT NULL
+ORDER BY datname, grantee, priv;
+
