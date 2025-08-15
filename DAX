@@ -446,78 +446,6 @@ WHERE schemaname NOT IN ('pg_catalog','information_schema');
 
 
 
-#run this to drop roles
-SELECT rolname
-FROM pg_roles
-WHERE rolname !~ '^(pg_|rds_)'      -- skip system roles
-  AND rolname <> current_user       -- keep yourself
-  AND rolname <> 'postgres'         -- extra safety if present
-ORDER BY rolname;
-
-
-DO $$
-DECLARE
-    r   RECORD;
-BEGIN
-  FOR r IN
-    SELECT oid, rolname
-    FROM pg_roles
-    WHERE rolname !~ '^(pg_|rds_)'      -- skip system roles
-      AND rolname <> current_user       -- don't touch yourself
-      AND rolname <> 'postgres'         -- extra safety if present
-  LOOP
-    BEGIN
-      -- 0) Make sure we can act on the role: become a member first
-      EXECUTE format('GRANT %I TO %I', r.rolname, current_user);
-
-      -- 1) Reassign all objects this role owns in THIS DATABASE to you
-      EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
-
-      -- 2) Drop all privileges this role holds in THIS DATABASE
-      EXECUTE format('DROP OWNED BY %I', r.rolname);
-
-      -- 3) Clean up any role memberships to avoid dependency errors
-      -- Revoke this role from its members
-      EXECUTE $q$WITH m AS (
-         SELECT pg_get_userbyid(roleid)  AS role_name,
-                pg_get_userbyid(member)  AS member_name
-         FROM pg_auth_members
-      )
-      SELECT string_agg(format('REVOKE %I FROM %I;', role_name, member_name), E'\n')
-      FROM m WHERE role_name = $q$ || quote_ident(r.rolname) || $q$;$q$;
-
-      -- Revoke memberships this role has in other roles
-      EXECUTE $q$WITH m AS (
-         SELECT pg_get_userbyid(roleid)  AS role_name,
-                pg_get_userbyid(member)  AS member_name
-         FROM pg_auth_members
-      )
-      SELECT string_agg(format('REVOKE %I FROM %I;', role_name, $q$ || quote_ident(r.rolname) || $q$), E'\n')
-      FROM m WHERE member_name = $q$ || quote_ident(r.rolname) || $q$;$q$;
-
-      -- 4) Drop the role
-      EXECUTE format('DROP ROLE %I', r.rolname);
-
-    EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'Skipping role % due to: %', r.rolname, SQLERRM;
-      -- Try to undo the temporary membership if it was granted
-      BEGIN
-        EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
-      EXCEPTION WHEN OTHERS THEN
-        -- ignore
-        NULL;
-      END;
-    END;
-
-    -- Best-effort cleanup of the temp membership
-    BEGIN
-      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
-    EXCEPTION WHEN OTHERS THEN
-      NULL;
-    END;
-  END LOOP;
-END$$;
-
 
 
 DO $$
@@ -533,4 +461,48 @@ BEGIN
         EXECUTE format('ALTER ROLE %I WITH LOGIN', r.rolname);
     END LOOP;
 END$$;
+
+
+
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid, rolname
+    FROM pg_roles
+    WHERE rolname !~ '^(pg_|rds_)'
+      AND rolname <> current_user
+      AND rolname <> 'postgres'
+  LOOP
+    BEGIN
+      -- Temporarily grant to yourself so REASSIGN works
+      EXECUTE format('GRANT %I TO %I', r.rolname, current_user);
+
+      -- Reassign objects
+      EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
+
+      -- Drop privileges
+      EXECUTE format('DROP OWNED BY %I', r.rolname);
+
+      -- Revoke memberships (quoted role names)
+      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
+
+      -- Drop the role
+      EXECUTE format('DROP ROLE %I', r.rolname);
+
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Skipping role % due to: %', r.rolname, SQLERRM;
+    END;
+
+    -- Cleanup: revoke temp grant
+    BEGIN
+      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END LOOP;
+END$$;
+
 
