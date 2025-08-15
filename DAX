@@ -450,59 +450,25 @@ WHERE schemaname NOT IN ('pg_catalog','information_schema');
 
 DO $$
 DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN
-        SELECT rolname
-        FROM pg_roles
-        WHERE rolname !~ '^(pg_|rds_)'  -- skip system roles
-          AND rolname <> current_user   -- don’t touch yourself in case you lose connection
-    LOOP
-        EXECUTE format('ALTER ROLE %I WITH LOGIN', r.rolname);
-    END LOOP;
-END$$;
-
-
-
-
-DO $$
-DECLARE
-    r RECORD;
+  r RECORD;
 BEGIN
   FOR r IN
-    SELECT oid, rolname
+    SELECT rolname
     FROM pg_roles
-    WHERE rolname !~ '^(pg_|rds_)'
-      AND rolname <> current_user
-      AND rolname <> 'postgres'
+    WHERE rolname <> current_user
+      AND rolname !~ '^(pg_|rds_)'              -- skip system / AWS-managed
+      AND rolname NOT IN ('postgres')           -- extra safety if present
   LOOP
     BEGIN
-      -- Temporarily grant to yourself so REASSIGN works
-      EXECUTE format('GRANT %I TO %I', r.rolname, current_user);
-
-      -- Reassign objects
-      EXECUTE format('REASSIGN OWNED BY %I TO %I', r.rolname, current_user);
-
-      -- Drop privileges
-      EXECUTE format('DROP OWNED BY %I', r.rolname);
-
-      -- Revoke memberships (quoted role names)
-      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
-
-      -- Drop the role
-      EXECUTE format('DROP ROLE %I', r.rolname);
-
-    EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'Skipping role % due to: %', r.rolname, SQLERRM;
-    END;
-
-    -- Cleanup: revoke temp grant
-    BEGIN
-      EXECUTE format('REVOKE %I FROM %I', r.rolname, current_user);
-    EXCEPTION WHEN OTHERS THEN
-      NULL;
+      EXECUTE format('ALTER ROLE %I WITH LOGIN', r.rolname);
+      RAISE NOTICE 'Set LOGIN on role %', r.rolname;
+    EXCEPTION
+      WHEN insufficient_privilege
+        THEN RAISE NOTICE 'Skipping % (insufficient privilege): %', r.rolname, SQLERRM;
+      WHEN feature_not_supported
+        THEN RAISE NOTICE 'Skipping % (feature not supported): %', r.rolname, SQLERRM;
+      WHEN OTHERS
+        THEN RAISE NOTICE 'Skipping % due to: %', r.rolname, SQLERRM;
     END;
   END LOOP;
 END$$;
-
-
