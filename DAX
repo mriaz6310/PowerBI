@@ -503,18 +503,16 @@ END$$;
 
 
 #grants and access
-
--- Extract schema-level GRANTs (USAGE/CREATE) for all non-system schemas
 WITH schema_acl AS (
   SELECT
     n.nspname AS schema_name,
-    x.grantee,            -- OID; 0 means PUBLIC
-    x.privileges,         -- text[]
-    x.grant_options       -- text[]
+    x.grantee,            -- OID; 0 = PUBLIC
+    x.privileges::text[], -- cast privileges to text[]
+    x.grant_options::text[]
   FROM pg_namespace n
   LEFT JOIN LATERAL
     aclexplode(COALESCE(n.nspacl, '{}'::aclitem[]))
-      AS x(grantee, grantor, privileges, grant_options)
+      AS x(grantee oid, grantor oid, privileges text[], grant_options text[])
     ON TRUE
   WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
 )
@@ -533,6 +531,5 @@ FROM (
   SELECT schema_name, grantee, grant_options, unnest(privileges) AS priv
   FROM schema_acl
 ) t
--- keep PUBLIC; skip pg_/rds_ roles
 WHERE (grantee = 0 OR (SELECT rolname FROM pg_roles WHERE oid = grantee) !~ '^(pg_|rds_)')
 ORDER BY schema_name, grantee, priv;
