@@ -517,3 +517,20 @@ BEGIN
     END;
   END LOOP;
 END$$;
+
+
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN
+        SELECT rolname
+        FROM pg_roles
+        WHERE rolname !~ '^(pg_|rds_)'  -- skip system roles
+          AND rolname <> current_user   -- don’t touch yourself in case you lose connection
+    LOOP
+        EXECUTE format('ALTER ROLE %I WITH LOGIN', r.rolname);
+    END LOOP;
+END$$;
+
