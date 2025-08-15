@@ -504,36 +504,34 @@ END$$;
 
 WITH schema_acl AS (
   SELECT
-    n.nspname                                 AS schema_name,
-    x.grantee                                 AS grantee_oid,   -- 0 = PUBLIC
-    r.rolname                                 AS grantee_name,  -- NULL when PUBLIC
-    x.privileges::text[]                      AS privs,
-    x.grant_options::text[]                   AS grant_opts
+    n.nspname AS schema_name,
+    a.grantee,        -- OID; 0 means PUBLIC
+    r.rolname AS grantee_name,
+    a.privileges,
+    a.grant_options
   FROM pg_namespace n
-  LEFT JOIN LATERAL
-    aclexplode(COALESCE(n.nspacl, '{}'::aclitem[]))
-    AS x(grantee oid, grantor oid, privileges text[], grant_options text[])
+  LEFT JOIN LATERAL aclexplode(COALESCE(n.nspacl, '{}'::aclitem[])) a
     ON TRUE
-  LEFT JOIN pg_roles r ON r.oid = x.grantee
+  LEFT JOIN pg_roles r
+    ON r.oid = a.grantee
   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
     AND n.nspname NOT LIKE 'pg_toast%'
 )
 SELECT
   format(
     'GRANT %s ON SCHEMA %I TO %s%s;',
-    priv,                                                -- USAGE or CREATE
+    priv,                                   -- USAGE or CREATE
     schema_name,
-    CASE
-      WHEN grantee_oid = 0 THEN 'PUBLIC'
-      ELSE quote_ident(grantee_name)
+    CASE WHEN grantee = 0
+         THEN 'PUBLIC'
+         ELSE quote_ident(grantee_name)
     END,
-    CASE WHEN priv = ANY (grant_opts) THEN ' WITH GRANT OPTION' ELSE '' END
+    CASE WHEN priv = ANY (grant_options) THEN ' WITH GRANT OPTION' ELSE '' END
   ) AS ddl
 FROM (
-  SELECT schema_name, grantee_oid, grantee_name, grant_opts, unnest(privs) AS priv
+  SELECT schema_name, grantee, grantee_name, grant_options, unnest(privileges) AS priv
   FROM schema_acl
 ) t
--- keep PUBLIC and non-system roles only
 WHERE priv IN ('USAGE','CREATE')
-  AND (grantee_oid = 0 OR grantee_name !~ '^(pg_|rds_)')
+  AND (grantee = 0 OR grantee_name !~ '^(pg_|rds_)')
 ORDER BY schema_name, grantee_name NULLS LAST, priv;
