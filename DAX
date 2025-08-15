@@ -502,155 +502,68 @@ END$$;
 
 
 
-WITH schema_acl AS (
-  SELECT
-    n.nspname AS schema_name,
-    a.grantee,
-    a.privilege_type,
-    a.is_grantable
-  FROM pg_namespace n
-  LEFT JOIN LATERAL aclexplode(COALESCE(n.nspacl, '{}'::aclitem[])) a ON TRUE
-  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT
-  format(
-    'GRANT %s ON SCHEMA %I TO %s%s;',
-    s.priv,                                           -- USAGE or CREATE
-    s.schema_name,
-    CASE WHEN s.grantee = 0
-         THEN 'PUBLIC'
-         ELSE quote_ident(r.rolname)
-    END,
-    CASE WHEN s.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
-  ) AS ddl
+
+
+-- Simple object-level grants extractor
+SELECT format(
+         'GRANT %s ON %s%s TO %s%s;',
+         privilege_type,
+         CASE WHEN objtype = 'schema' THEN 'SCHEMA '||quote_ident(schemaname)
+              WHEN objtype = 'table'  THEN format('TABLE %I.%I', schemaname, objname)
+              WHEN objtype = 'sequence' THEN format('SEQUENCE %I.%I', schemaname, objname)
+              WHEN objtype = 'function' THEN format('FUNCTION %I.%I(%s)', schemaname, objname, funcargs)
+         END,
+         '',
+         CASE WHEN grantee = 'PUBLIC' THEN 'PUBLIC' ELSE quote_ident(grantee) END,
+         CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
+       ) AS ddl
 FROM (
-  SELECT schema_name, grantee, privilege_type AS priv, is_grantable
-  FROM schema_acl
-) s
-LEFT JOIN pg_roles r ON r.oid = s.grantee
-WHERE s.priv IN ('USAGE','CREATE')
-  AND (s.grantee = 0 OR r.rolname !~ '^(pg_|rds_)')
-ORDER BY s.schema_name, r.rolname NULLS LAST, s.priv;
-
-
-
-
-
--- === SCHEMA-LEVEL GRANTS ===
-WITH schema_acl AS (
-  SELECT
-    n.nspname AS schema_name,
-    a.grantee,
-    r.rolname AS grantee_name,
-    a.privilege_type,
-    a.is_grantable
+  -- Schemas
+  SELECT n.nspname AS schemaname, NULL::text AS objname, NULL::text AS funcargs,
+         CASE WHEN g.grantee_oid = 0 THEN 'PUBLIC' ELSE r.rolname END AS grantee,
+         g.privilege_type, g.is_grantable, 'schema' AS objtype
   FROM pg_namespace n
-  LEFT JOIN LATERAL aclexplode(COALESCE(n.nspacl, '{}'::aclitem[])) a ON TRUE
-  LEFT JOIN pg_roles r ON r.oid = a.grantee
-  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT
-  format(
-    'GRANT %s ON SCHEMA %I TO %s%s;',
-    privilege_type,
-    schema_name,
-    CASE WHEN grantee = 0 THEN 'PUBLIC' ELSE quote_ident(grantee_name) END,
-    CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
-  ) AS ddl
-FROM schema_acl
-WHERE grantee_name IS NULL OR grantee_name !~ '^(pg_|rds_)'
-ORDER BY schema_name, grantee_name NULLS LAST, privilege_type;
+  CROSS JOIN LATERAL aclexplode(COALESCE(n.nspacl, '{}'::aclitem[])) AS g(grantee_oid, grantor_oid, privilege_type, is_grantable)
+  LEFT JOIN pg_roles r ON r.oid = g.grantee_oid
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
 
--- === TABLE/VIEW GRANTS ===
-WITH table_acl AS (
-  SELECT
-    n.nspname AS schema_name,
-    c.relname AS table_name,
-    a.grantee,
-    r.rolname AS grantee_name,
-    a.privilege_type,
-    a.is_grantable
+  UNION ALL
+
+  -- Tables & views
+  SELECT n.nspname, c.relname, NULL,
+         CASE WHEN g.grantee_oid = 0 THEN 'PUBLIC' ELSE r.rolname END,
+         g.privilege_type, g.is_grantable, 'table'
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  LEFT JOIN LATERAL aclexplode(COALESCE(c.relacl, '{}'::aclitem[])) a ON TRUE
-  LEFT JOIN pg_roles r ON r.oid = a.grantee
-  WHERE c.relkind IN ('r','v','m')  -- tables, views, matviews
-    AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT
-  format(
-    'GRANT %s ON %I.%I TO %s%s;',
-    privilege_type,
-    schema_name,
-    table_name,
-    CASE WHEN grantee = 0 THEN 'PUBLIC' ELSE quote_ident(grantee_name) END,
-    CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
-  ) AS ddl
-FROM table_acl
-WHERE grantee_name IS NULL OR grantee_name !~ '^(pg_|rds_)'
-ORDER BY schema_name, table_name, grantee_name NULLS LAST, privilege_type;
+  CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, '{}'::aclitem[])) AS g(grantee_oid, grantor_oid, privilege_type, is_grantable)
+  LEFT JOIN pg_roles r ON r.oid = g.grantee_oid
+  WHERE c.relkind IN ('r','v','m','f')
+    AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
 
--- === SEQUENCE GRANTS ===
-WITH seq_acl AS (
-  SELECT
-    n.nspname AS schema_name,
-    c.relname AS seq_name,
-    a.grantee,
-    r.rolname AS grantee_name,
-    a.privilege_type,
-    a.is_grantable
+  UNION ALL
+
+  -- Sequences
+  SELECT n.nspname, c.relname, NULL,
+         CASE WHEN g.grantee_oid = 0 THEN 'PUBLIC' ELSE r.rolname END,
+         g.privilege_type, g.is_grantable, 'sequence'
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  LEFT JOIN LATERAL aclexplode(COALESCE(c.relacl, '{}'::aclitem[])) a ON TRUE
-  LEFT JOIN pg_roles r ON r.oid = a.grantee
+  CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, '{}'::aclitem[])) AS g(grantee_oid, grantor_oid, privilege_type, is_grantable)
+  LEFT JOIN pg_roles r ON r.oid = g.grantee_oid
   WHERE c.relkind = 'S'
-    AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT
-  format(
-    'GRANT %s ON SEQUENCE %I.%I TO %s%s;',
-    privilege_type,
-    schema_name,
-    seq_name,
-    CASE WHEN grantee = 0 THEN 'PUBLIC' ELSE quote_ident(grantee_name) END,
-    CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
-  ) AS ddl
-FROM seq_acl
-WHERE grantee_name IS NULL OR grantee_name !~ '^(pg_|rds_)'
-ORDER BY schema_name, seq_name, grantee_name NULLS LAST, privilege_type;
+    AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
 
--- === FUNCTION/PROCEDURE GRANTS ===
-WITH func_acl AS (
-  SELECT
-    n.nspname AS schema_name,
-    p.proname AS func_name,
-    pg_get_function_identity_arguments(p.oid) AS args,
-    a.grantee,
-    r.rolname AS grantee_name,
-    a.privilege_type,
-    a.is_grantable
+  UNION ALL
+
+  -- Functions
+  SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid),
+         CASE WHEN g.grantee_oid = 0 THEN 'PUBLIC' ELSE r.rolname END,
+         g.privilege_type, g.is_grantable, 'function'
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
-  LEFT JOIN LATERAL aclexplode(COALESCE(p.proacl, '{}'::aclitem[])) a ON TRUE
-  LEFT JOIN pg_roles r ON r.oid = a.grantee
-  WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT
-  format(
-    'GRANT %s ON FUNCTION %I.%I(%s) TO %s%s;',
-    privilege_type,
-    schema_name,
-    func_name,
-    args,
-    CASE WHEN grantee = 0 THEN 'PUBLIC' ELSE quote_ident(grantee_name) END,
-    CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END
-  ) AS ddl
-FROM func_acl
-WHERE grantee_name IS NULL OR grantee_name !~ '^(pg_|rds_)'
-ORDER BY schema_name, func_name, grantee_name NULLS LAST, privilege_type;
-
+  CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, '{}'::aclitem[])) AS g(grantee_oid, grantor_oid, privilege_type, is_grantable)
+  LEFT JOIN pg_roles r ON r.oid = g.grantee_oid
+  WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+) grants
+WHERE grantee IS NOT NULL AND grantee !~ '^(pg_|rds_)'
+ORDER BY objtype, schemaname, objname, grantee, privilege_type;
