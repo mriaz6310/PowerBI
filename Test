@@ -75,3 +75,19 @@ WHERE type_desc = 'ROWS'
   AND RIGHT(df.physical_name,4) = '.ndf'
 ORDER BY file_id;
 
+
+
+
+SELECT
+    identity_name AS user_name,
+    namespace_name AS schema_name,
+    relation_name AS object_name,
+    privilege_type AS privilege,
+    identity_type AS user_type
+FROM SVV_RELATION_PRIVILEGES
+WHERE identity_name = 'prof_afm_g'
+  AND namespace_name = 'abcdm'
+  AND relation_name LIKE 'vw%'
+ORDER BY user_name, schema_name, object_name;
+
+
