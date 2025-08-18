@@ -46,3 +46,17 @@ FROM pg_user_mappings m
 JOIN pg_foreign_server s ON s.oid = m.srvid
 LEFT JOIN pg_roles r ON r.oid = m.umuser
 ORDER BY 1;
+
+
+
+
+USE NPA;
+GO
+SELECT 
+    name AS logical_name, 
+    physical_name
+FROM sys.database_files
+WHERE type_desc = 'ROWS'   -- data files (includes .mdf + .ndf)
+  AND RIGHT(physical_name,4) = '.ndf'
+ORDER BY file_id;
+
