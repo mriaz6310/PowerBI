@@ -60,3 +60,18 @@ WHERE type_desc = 'ROWS'   -- data files (includes .mdf + .ndf)
   AND RIGHT(physical_name,4) = '.ndf'
 ORDER BY file_id;
 
+
+USE NPA;
+GO
+DECLARE @OldPath NVARCHAR(260) = N'E:\SQLData\NPA';   -- current folder
+DECLARE @NewPath NVARCHAR(260) = N'G:\SQLData\NPA';   -- new folder
+
+SELECT 
+    'ALTER DATABASE NPA MODIFY FILE (NAME = ' + QUOTENAME(df.name,'''')
+    + ', FILENAME = ' + QUOTENAME(REPLACE(df.physical_name, @OldPath, @NewPath),'''') 
+    + ');' AS cmd
+FROM sys.database_files df
+WHERE type_desc = 'ROWS'
+  AND RIGHT(df.physical_name,4) = '.ndf'
+ORDER BY file_id;
+
