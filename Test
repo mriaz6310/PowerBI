@@ -92,33 +92,30 @@ ORDER BY user_name, schema_name, object_name;
 
 
 
-SELECT n.nspname AS schema_name,
-       r.rolname AS grantee,
-       p.perm AS privilege
-FROM pg_namespace n
-LEFT JOIN (
-    SELECT (aclexplode(nspacl)).grantee,
-           (aclexplode(nspacl)).privilege_type AS perm,
-           nspname
-    FROM pg_namespace
-) p ON n.nspname = p.nspname
-LEFT JOIN pg_roles r ON p.grantee = r.oid
-WHERE n.nspname NOT LIKE 'pg_%'
-  AND n.nspname <> 'information_schema'
-ORDER BY n.nspname, r.rolname;
 
+object permisisons:
 
-for a single user:
-
-SELECT
-    n.nspname AS schema_name,
-    r.rolname AS grantee,
-    a.privilege_type
-FROM pg_namespace n
-LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
-LEFT JOIN pg_roles r ON r.oid = a.grantee
-WHERE r.rolname = 'rdprod'
-ORDER BY n.nspname, a.privilege_type;
-
-
-
+-- Extract object-level grants for tables/views/matviews/sequences
+SELECT format(
+         'GRANT %s ON %s %I.%I TO %s;',
+         priv.privilege_type,
+         CASE c.relkind
+           WHEN 'r' THEN 'TABLE'
+           WHEN 'v' THEN 'VIEW'
+           WHEN 'm' THEN 'MATERIALIZED VIEW'
+           WHEN 'S' THEN 'SEQUENCE'
+           WHEN 'f' THEN 'FOREIGN TABLE'
+           ELSE 'TABLE'
+         END,
+         n.nspname,
+         c.relname,
+         CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(r.rolname) END
+       ) AS ddl
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+LEFT JOIN LATERAL aclexplode(c.relacl) g ON TRUE
+LEFT JOIN pg_roles r ON r.oid = g.grantee
+CROSS JOIN LATERAL unnest(g.privilege_types) AS priv(privilege_type)
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+ORDER BY n.nspname, c.relname, r.rolname;
