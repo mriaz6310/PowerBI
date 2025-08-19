@@ -95,27 +95,22 @@ ORDER BY user_name, schema_name, object_name;
 
 object permisisons:
 
--- Extract object-level grants for tables/views/matviews/sequences
-SELECT format(
-         'GRANT %s ON %s %I.%I TO %s;',
-         priv.privilege_type,
-         CASE c.relkind
-           WHEN 'r' THEN 'TABLE'
-           WHEN 'v' THEN 'VIEW'
-           WHEN 'm' THEN 'MATERIALIZED VIEW'
-           WHEN 'S' THEN 'SEQUENCE'
-           WHEN 'f' THEN 'FOREIGN TABLE'
-           ELSE 'TABLE'
-         END,
-         n.nspname,
-         c.relname,
-         CASE WHEN g.grantee = 0 THEN 'PUBLIC' ELSE quote_ident(r.rolname) END
-       ) AS ddl
-FROM pg_class c
-JOIN pg_namespace n ON n.oid = c.relnamespace
-LEFT JOIN LATERAL aclexplode(c.relacl) g ON TRUE
-LEFT JOIN pg_roles r ON r.oid = g.grantee
-CROSS JOIN LATERAL unnest(g.privilege_types) AS priv(privilege_type)
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-ORDER BY n.nspname, c.relname, r.rolname;
+-- SOURCE DB -> copy output -> run on TARGET DB
+WITH roles AS (
+  SELECT rolname FROM pg_roles WHERE rolname !~ '^(pg_|rds_)'
+),
+objs AS (
+  SELECT n.nspname AS schemaname, c.relname AS objname
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('r','v','m','f')                       -- table, view, matview, foreign table
+    AND n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%'
+)
+SELECT format('GRANT %s ON %I.%I TO %I;', p.priv, o.schemaname, o.objname, r.rolname) AS ddl
+FROM roles r
+CROSS JOIN objs o
+CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRIGGER'),('REFERENCES')) AS p(priv)
+WHERE has_table_privilege(r.rolname, format('%I.%I', o.schemaname, o.objname), p.priv)
+ORDER BY o.schemaname, o.objname, r.rolname, p.priv;
+
