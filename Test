@@ -108,3 +108,17 @@ WHERE n.nspname NOT LIKE 'pg_%'
 ORDER BY n.nspname, r.rolname;
 
 
+for a single user:
+
+SELECT
+    n.nspname AS schema_name,
+    r.rolname AS grantee,
+    a.privilege_type
+FROM pg_namespace n
+LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE r.rolname = 'rdprod'
+ORDER BY n.nspname, a.privilege_type;
+
+
+
