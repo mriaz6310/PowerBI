@@ -91,3 +91,20 @@ WHERE identity_name = 'prof_afm_g'
 ORDER BY user_name, schema_name, object_name;
 
 
+
+SELECT n.nspname AS schema_name,
+       r.rolname AS grantee,
+       p.perm AS privilege
+FROM pg_namespace n
+LEFT JOIN (
+    SELECT (aclexplode(nspacl)).grantee,
+           (aclexplode(nspacl)).privilege_type AS perm,
+           nspname
+    FROM pg_namespace
+) p ON n.nspname = p.nspname
+LEFT JOIN pg_roles r ON p.grantee = r.oid
+WHERE n.nspname NOT LIKE 'pg_%'
+  AND n.nspname <> 'information_schema'
+ORDER BY n.nspname, r.rolname;
+
+
