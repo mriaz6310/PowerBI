@@ -114,3 +114,30 @@ CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRIGGER'),('REF
 WHERE has_table_privilege(r.rolname, format('%I.%I', o.schemaname, o.objname), p.priv)
 ORDER BY o.schemaname, o.objname, r.rolname, p.priv;
 
+
+
+
+
+DO $$
+DECLARE
+    sch text;
+    usr text := 'rdprod';  -- replace with your target user
+BEGIN
+    -- Loop through all non-system schemas
+    FOR sch IN
+        SELECT schema_name
+        FROM information_schema.schemata
+        WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+    LOOP
+        -- Grant schema access
+        EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I;', sch, usr);
+
+        -- Grant select on existing tables
+        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO %I;', sch, usr);
+
+        -- Make sure future tables are also covered
+        EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT ON TABLES TO %I;', sch, usr);
+    END LOOP;
+END$$;
+
+
