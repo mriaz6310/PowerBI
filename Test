@@ -205,29 +205,14 @@ ORDER BY n.nspname;
 
 
 
-#revokefprschemaspuclic
-WITH schema_info AS (
-    SELECT
-        n.nspname,
-        pg_get_userbyid(n.nspowner) AS owner,
-        unnest(coalesce(n.nspacl, '{}'))::text AS acl_item
-    FROM pg_namespace n
-    WHERE n.nspowner > 1
-      AND n.nspname NOT IN ('pg_catalog','information_schema')
-      AND n.nspname NOT LIKE 'pg_toast%'
-      AND n.nspname NOT LIKE 'pg_temp_%'
-)
+#revoke all for a single user
+
 SELECT
-    nspname AS schema_name,
-    CASE
-        WHEN owner = 'adhname' THEN
-            '-- ' || nspname || ': adhname is owner, cannot revoke (must transfer ownership)'
-        WHEN split_part(acl_item, '=', 1) = '' AND position('U' in split_part(acl_item, '=', 2)) > 0 THEN
-            'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM PUBLIC;'
-        WHEN split_part(acl_item, '=', 1) = 'adhname' AND position('U' in split_part(acl_item, '=', 2)) > 0 THEN
-            'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM ' || quote_ident('adhname') || ';'
-        ELSE
-            NULL
-    END AS revoke_stmt
-FROM schema_info
-ORDER BY schema_name;
+    'REVOKE ALL PRIVILEGES ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' FROM ' || quote_ident('adhname') || ';' AS revoke_statement
+FROM pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY n.nspname;
+
