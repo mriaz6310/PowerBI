@@ -216,11 +216,23 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   AND n.nspname NOT LIKE 'pg_temp_%'
 ORDER BY n.nspname;
 
-$checkschemaowner
-SELECT nspname AS schema_name
-FROM pg_namespace
-WHERE pg_get_userbyid(nspowner) = 'adhname'
-  AND nspname NOT IN ('pg_catalog','information_schema')
-  AND nspname NOT LIKE 'pg_toast%'
-  AND nspname NOT LIKE 'pg_temp_%';
+
+
+
+
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT nspname
+    FROM pg_namespace
+    WHERE nspowner > 1
+      AND nspname NOT IN ('pg_catalog','information_schema')
+      AND nspname NOT LIKE 'pg_toast%'
+      AND nspname NOT LIKE 'pg_temp_%'
+  LOOP
+    EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM PUBLIC;', r.nspname);
+  END LOOP;
+END $$;
+
 
