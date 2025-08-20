@@ -597,4 +597,24 @@ LEFT JOIN pg_roles r ON r.oid = sa.grantee
 ORDER BY schema_name, grantee, privilege_type;
 
 
+SELECT
+    CASE
+        WHEN NOT has_schema_privilege(u.usename, n.nspname, 'USAGE')
+        THEN 'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
+             ' TO ' || quote_ident(u.usename) || ';'
+    END AS grant_usage_stmt,
+    CASE
+        WHEN NOT has_schema_privilege(u.usename, n.nspname, 'CREATE')
+        THEN 'GRANT CREATE ON SCHEMA ' || quote_ident(n.nspname) ||
+             ' TO ' || quote_ident(u.usename) || ';'
+    END AS grant_create_stmt
+FROM pg_user u
+CROSS JOIN pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY u.usename, n.nspname;
+
+
+
 
