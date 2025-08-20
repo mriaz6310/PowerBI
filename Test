@@ -141,3 +141,22 @@ BEGIN
 END$$;
 
 
+
+
+#test1usage
+SELECT
+    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' TO ' || quote_ident(u.usename) || ';' AS grant_usage_stmt
+FROM pg_user u
+CROSS JOIN (
+    SELECT nspname
+    FROM pg_namespace
+    WHERE nspowner > 1  -- filter out system schemas
+      AND nspname NOT IN ('pg_catalog','information_schema')
+      AND nspname NOT LIKE 'pg_toast%'
+      AND nspname NOT LIKE 'pg_temp_%'
+) n
+WHERE has_schema_privilege(u.usename, n.nspname, 'USAGE')
+ORDER BY u.usename, n.nspname;
+
+
