@@ -219,20 +219,25 @@ ORDER BY n.nspname;
 
 
 
+SELECT grantee, privilege_type, table_schema, table_name
+FROM information_schema.role_table_grants
+WHERE grantee = 'adhname'
+ORDER BY table_schema, table_name;
+
 
 DO $$
 DECLARE r record;
 BEGIN
   FOR r IN
-    SELECT nspname
-    FROM pg_namespace
-    WHERE nspowner > 1
-      AND nspname NOT IN ('pg_catalog','information_schema')
-      AND nspname NOT LIKE 'pg_toast%'
-      AND nspname NOT LIKE 'pg_temp_%'
+    SELECT table_schema, table_name
+    FROM information_schema.role_table_grants
+    WHERE grantee = 'adhname'
   LOOP
-    EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM PUBLIC;', r.nspname);
+    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA %I FROM adhname;', r.table_schema);
+    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA %I FROM adhname;', r.table_schema);
+    EXECUTE format('REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA %I FROM adhname;', r.table_schema);
   END LOOP;
 END $$;
+
 
 
