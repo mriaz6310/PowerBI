@@ -178,4 +178,17 @@ WHERE has_schema_privilege(u.usename, n.nspname, 'CREATE')
 ORDER BY u.usename, n.nspname;
 
 
+#singleuser:
+SELECT
+    n.nspname  AS schema_name,
+    has_schema_privilege('adhname', n.nspname, 'USAGE')  AS has_usage_privilege,
+    has_schema_privilege('adhname', n.nspname, 'CREATE') AS has_create_privilege
+FROM pg_namespace n
+WHERE n.nspowner > 1  -- filter out system schemas
+  AND n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY n.nspname;
+
+
 
