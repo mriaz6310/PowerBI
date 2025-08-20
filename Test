@@ -205,3 +205,27 @@ ORDER BY n.nspname;
 
 
 
+#revokefprschemaspuclic
+WITH schema_acls AS (
+  SELECT
+      n.nspname,
+      unnest(coalesce(n.nspacl, '{}')) AS acl_item
+  FROM pg_namespace n
+  WHERE n.nspowner > 1
+    AND n.nspname NOT IN ('pg_catalog','information_schema')
+    AND n.nspname NOT LIKE 'pg_toast%'
+    AND n.nspname NOT LIKE 'pg_temp_%'
+)
+SELECT
+    CASE
+      WHEN split_part(acl_item, '=', 1) = ''  -- PUBLIC grant
+      THEN 'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM PUBLIC;'
+      WHEN split_part(acl_item, '=', 1) = 'adhname'  -- direct grant
+      THEN 'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM ' || quote_ident('adhname') || ';'
+    END AS revoke_stmt
+FROM schema_acls
+WHERE position('U' in split_part(acl_item, '=', 2)) > 0  -- has USAGE
+  AND (split_part(acl_item, '=', 1) = 'adhname' OR split_part(acl_item, '=', 1) = '')
+ORDER BY nspname;
+
+
