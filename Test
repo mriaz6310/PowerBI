@@ -206,26 +206,51 @@ ORDER BY n.nspname;
 
 
 #revokefprschemaspuclic
-WITH schema_acls AS (
-  SELECT
-      n.nspname,
-      unnest(coalesce(n.nspacl, '{}')) AS acl_item
-  FROM pg_namespace n
-  WHERE n.nspowner > 1
-    AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-    AND n.nspname NOT LIKE 'pg_temp_%'
-)
-SELECT
-    CASE
-      WHEN split_part(acl_item, '=', 1) = ''  -- PUBLIC grant
-      THEN 'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM PUBLIC;'
-      WHEN split_part(acl_item, '=', 1) = 'adhname'  -- direct grant
-      THEN 'REVOKE USAGE ON SCHEMA ' || quote_ident(nspname) || ' FROM ' || quote_ident('adhname') || ';'
-    END AS revoke_stmt
-FROM schema_acls
-WHERE position('U' in split_part(acl_item, '=', 2)) > 0  -- has USAGE
-  AND (split_part(acl_item, '=', 1) = 'adhname' OR split_part(acl_item, '=', 1) = '')
-ORDER BY nspname;
+DO $$
+DECLARE
+    r record;
+BEGIN
+    -- All roles that confer privileges to 'adhname' (includes 'adhname' itself)
+    CREATE TEMP TABLE _roles_to_revoke(rolname text PRIMARY KEY) ON COMMIT DROP;
+    INSERT INTO _roles_to_revoke(rolname)
+    WITH RECURSIVE rc AS (
+        SELECT oid, rolname FROM pg_roles WHERE rolname = 'adhname'
+        UNION
+        SELECT m.roleid, r.rolname
+        FROM pg_auth_members m
+        JOIN rc ON m.member = rc.oid
+        JOIN pg_roles r ON r.oid = m.roleid
+    )
+    SELECT rolname FROM rc;
 
+    -- 1) Revoke USAGE from PUBLIC wherever present
+    FOR r IN
+        SELECT n.nspname
+        FROM pg_namespace n
+        WHERE n.nspowner > 1
+          AND n.nspname NOT IN ('pg_catalog','information_schema')
+          AND n.nspname NOT LIKE 'pg_toast%'
+          AND n.nspname NOT LIKE 'pg_temp_%'
+          AND EXISTS (
+            SELECT 1 FROM unnest(coalesce(n.nspacl,'{}')) acl
+            WHERE split_part(acl,'=',1) = ''    -- PUBLIC
+              AND position('U' in split_part(acl,'=',2)) > 0
+          )
+    LOOP
+        EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM PUBLIC;', r.nspname);
+    END LOOP;
 
+    -- 2) Revoke USAGE from adhname and any parent roles
+    FOR r IN
+        SELECT n.nspname, rt.rolname
+        FROM pg_namespace n
+        CROSS JOIN _roles_to_revoke rt
+        WHERE n.nspowner > 1
+          AND n.nspname NOT IN ('pg_catalog','information_schema')
+          AND n.nspname NOT LIKE 'pg_toast%'
+          AND n.nspname NOT LIKE 'pg_temp_%'
+          AND has_schema_privilege(rt.rolname, n.nspname, 'USAGE')
+    LOOP
+        EXECUTE format('REVOKE USAGE ON SCHEMA %I FROM %I;', r.nspname, r.rolname);
+    END LOOP;
+END $$;
