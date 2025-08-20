@@ -191,4 +191,17 @@ WHERE n.nspowner > 1  -- filter out system schemas
 ORDER BY n.nspname;
 
 
+#revokefora single user
+SELECT
+    'REVOKE USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' FROM ' || quote_ident('adhname') || ';' AS revoke_usage_stmt
+FROM pg_namespace n
+WHERE n.nspowner > 1
+  AND n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY n.nspname;
+
+
+
 
