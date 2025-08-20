@@ -216,7 +216,7 @@ WHERE n.nspowner > 1
   AND EXISTS (
       SELECT 1
       FROM unnest(coalesce(n.nspacl, '{}')) acl
-      WHERE split_part(acl, '=', 1) = ''   -- '' = PUBLIC
-        AND position('U' in split_part(acl, '=', 2)) > 0  -- USAGE privilege
+      WHERE split_part(acl::text, '=', 1) = ''   -- '' = PUBLIC
+        AND position('U' in split_part(acl::text, '=', 2)) > 0
   )
 ORDER BY n.nspname;
