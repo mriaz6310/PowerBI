@@ -143,7 +143,7 @@ END$$;
 
 
 
-#test1usage
+#test1usageschema
 SELECT
     'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
     ' TO ' || quote_ident(u.usename) || ';' AS grant_usage_stmt
@@ -158,5 +158,8 @@ CROSS JOIN (
 ) n
 WHERE has_schema_privilege(u.usename, n.nspname, 'USAGE')
 ORDER BY u.usename, n.nspname;
+
+
+#testcreateschema
 
 
