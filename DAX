@@ -606,6 +606,17 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
 ORDER BY u.usename, n.nspname;
 
 
+#revokeschema
+SELECT
+    'REVOKE ALL PRIVILEGES ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' FROM ' || quote_ident(u.usename) || ';' AS revoke_statement
+FROM pg_user u
+CROSS JOIN pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY u.usename, n.nspname;
+
 
 
 
