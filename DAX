@@ -576,25 +576,6 @@ ORDER BY o.schemaname, o.objname, r.rolname, v.priv;
 
 
 #schemalevelpriviliges
--- GRANTS present on each non-system schema (handles PUBLIC, quotes names, grant option)
-WITH schema_acls AS (
-  SELECT n.oid           AS nspid,
-         n.nspname       AS schema_name,
-         a.grantee,
-         a.privilege_type,
-         a.is_grantable
-  FROM pg_namespace n
-  LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
-  WHERE n.nspname NOT LIKE 'pg_%'
-    AND n.nspname <> 'information_schema'
-)
-SELECT 'GRANT ' || privilege_type ||
-       ' ON SCHEMA ' || quote_ident(schema_name) ||
-       ' TO ' || COALESCE(quote_ident(r.rolname), 'PUBLIC') ||
-       CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END || ';' AS grant_stmt
-FROM schema_acls sa
-LEFT JOIN pg_roles r ON r.oid = sa.grantee
-ORDER BY schema_name, grantee, privilege_type;
 
 
 SELECT
@@ -608,6 +589,22 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   -- only generate statements if user does NOT already have CREATE
   AND NOT has_schema_privilege(u.usename, n.nspname, 'CREATE')
 ORDER BY u.usename, n.nspname;
+
+
+#UsageonSchema:
+
+SELECT
+    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' TO ' || quote_ident(u.usename) || ';' AS grant_statement
+FROM pg_user u
+CROSS JOIN pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+  -- only generate statements if user does NOT already have USAGE
+  AND NOT has_schema_privilege(u.usename, n.nspname, 'USAGE')
+ORDER BY u.usename, n.nspname;
+
 
 
 
