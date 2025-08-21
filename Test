@@ -219,25 +219,23 @@ ORDER BY n.nspname;
 
 
 
-SELECT nspname, nspacl
-FROM pg_namespace
-WHERE nspacl IS NOT NULL
-  AND nspname NOT IN ('pg_catalog','information_schema')
-  AND nspname NOT LIKE 'pg_toast%'
-  AND nspname NOT LIKE 'pg_temp_%';
+#create for a sinhle user
+SELECT
+    'GRANT CREATE ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' TO ' || quote_ident('adhname') || ';' AS grant_stmt
+FROM pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY n.nspname;
 
 
-
-SELECT r.rolname AS role, m.roleid::regrole AS parent
-FROM pg_auth_members m
-JOIN pg_roles r ON r.oid = m.member
-WHERE r.rolname = 'a';
-
-SELECT grantee, routine_schema, routine_name, privilege_type
-FROM information_schema.role_routine_grants
-WHERE grantee = 'adhname';
-
-
-
-
-
+#usage for a single user
+SELECT
+    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
+    ' TO ' || quote_ident('adhname') || ';' AS grant_stmt
+FROM pg_namespace n
+WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+  AND n.nspname NOT LIKE 'pg_toast%'
+  AND n.nspname NOT LIKE 'pg_temp_%'
+ORDER BY n.nspname;
