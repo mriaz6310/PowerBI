@@ -1,0 +1,9 @@
+SELECT r.session_id, r.command, r.percent_complete, r.start_time,
+       r.wait_type, r.wait_time, r.wait_resource
+FROM sys.dm_exec_requests r
+WHERE r.command LIKE 'BACKUP%' AND r.database_id = DB_ID('CART');
+
+
+
+SELECT * FROM sys.dm_exec_requests
+WHERE database_id = DB_ID('CART') AND session_id <> @@SPID;
