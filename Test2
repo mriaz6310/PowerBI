@@ -37,3 +37,53 @@ SELECT
   END || ';'
 FROM pg_foreign_server s
 JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw;
+
+
+
+
+
+
+-- 1) FDW Extensions
+SELECT 'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(w.fdwname) || ';'
+FROM pg_foreign_server s
+JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+GROUP BY w.fdwname;
+
+-- 2) CREATE SERVER statements
+SELECT
+  'CREATE SERVER ' || quote_ident(s.srvname) ||
+  ' FOREIGN DATA WRAPPER ' || quote_ident(w.fdwname) ||
+  CASE
+    WHEN s.srvoptions IS NULL THEN ''
+    ELSE ' OPTIONS (' ||
+         array_to_string(
+           ARRAY(
+             SELECT quote_ident(split_part(o,'=',1)) || ' ' ||
+                    quote_literal(substring(o from position('=' in o)+1))
+             FROM unnest(s.srvoptions) AS o
+           ), ', '
+         ) || ')'
+  END || ';'
+FROM pg_foreign_server s
+JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw;
+
+-- 3) CREATE USER MAPPING statements
+SELECT
+  'CREATE USER MAPPING FOR ' ||
+  CASE WHEN m.umuser = 0 THEN 'PUBLIC' ELSE quote_ident(r.rolname) END ||
+  ' SERVER ' || quote_ident(s.srvname) ||
+  CASE
+    WHEN m.umoptions IS NULL THEN ''
+    ELSE ' OPTIONS (' ||
+         array_to_string(
+           ARRAY(
+             SELECT quote_ident(split_part(o,'=',1)) || ' ' ||
+                    quote_literal(substring(o from position('=' in o)+1))
+             FROM unnest(m.umoptions) AS o
+           ), ', '
+         ) || ')'
+  END || ';'
+FROM pg_user_mappings m
+JOIN pg_foreign_server s ON s.oid = m.srvid
+LEFT JOIN pg_roles r ON r.oid = m.umuser;
+
