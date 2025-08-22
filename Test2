@@ -7,3 +7,33 @@ WHERE r.command LIKE 'BACKUP%' AND r.database_id = DB_ID('CART');
 
 SELECT * FROM sys.dm_exec_requests
 WHERE database_id = DB_ID('CART') AND session_id <> @@SPID;
+
+
+
+
+
+fixing FDW;
+
+-- Create extensions if missing
+SELECT 'CREATE EXTENSION IF NOT EXISTS ' || quote_ident(w.fdwname) || ';'
+FROM pg_foreign_server s
+JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+GROUP BY w.fdwname;
+
+-- Create servers
+SELECT
+  'CREATE SERVER ' || quote_ident(s.srvname) ||
+  ' FOREIGN DATA WRAPPER ' || quote_ident(w.fdwname) ||
+  CASE
+    WHEN s.srvoptions IS NULL THEN ''
+    ELSE ' OPTIONS (' ||
+         array_to_string(
+           ARRAY(
+             SELECT quote_ident(split_part(o,'=',1)) || ' ' ||
+                    quote_literal(substring(o from position('=' in o)+1))
+             FROM unnest(s.srvoptions) AS o
+           ), ', '
+         ) || ')'
+  END || ';'
+FROM pg_foreign_server s
+JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw;
