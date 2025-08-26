@@ -87,3 +87,12 @@ FROM pg_user_mappings m
 JOIN pg_foreign_server s ON s.oid = m.srvid
 LEFT JOIN pg_roles r ON r.oid = m.umuser;
 
+
+SELECT schemaname   AS schema_name,
+       matviewname  AS materialized_view_name,
+       owner        AS view_owner
+FROM svv_materialized_views
+WHERE schemaname = 'car_dm'
+ORDER BY materialized_view_name;
+
+
