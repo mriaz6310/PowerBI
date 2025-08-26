@@ -109,8 +109,9 @@ SELECT schema_name,
        table_name,
        table_type
 FROM pg_catalog.svv_redshift_tables
-WHERE table_type = 'MATERIALIZED VIEW'
+WHERE table_name ILIKE 'mv%'
 ORDER BY schema_name, table_name;
+
 
 
 
