@@ -105,12 +105,13 @@ ORDER BY materialized_view_name;
 
 
 
--- What columns does SVV_REDSHIFT_TABLES have on *your* cluster?
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_schema = 'pg_catalog'
-  AND table_name   = 'svv_redshift_tables'
-ORDER BY ordinal_position;
+SELECT schema_name,
+       table_name,
+       table_type
+FROM pg_catalog.svv_redshift_tables
+WHERE table_type = 'MATERIALIZED VIEW'
+ORDER BY schema_name, table_name;
+
 
 
 
