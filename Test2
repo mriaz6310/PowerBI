@@ -109,7 +109,13 @@ SELECT schema_name,
        table_name,
        table_type
 FROM pg_catalog.svv_redshift_tables
-WHERE table_name ILIKE 'mv%'
+WHERE table_name ILIKE '%mv%'
+UNION ALL
+SELECT table_schema AS schema_name,
+       table_name,
+       'VIEW' AS table_type
+FROM information_schema.views
+WHERE table_name ILIKE '%mv%'
 ORDER BY schema_name, table_name;
 
 
