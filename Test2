@@ -101,3 +101,13 @@ WHERE c.relkind = 'm'
 ORDER BY materialized_view_name;
 
 
+SELECT n.nspname AS schema_name,
+       c.relname AS materialized_view_name,
+       r.usename AS owner
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_user r      ON r.usesysid = c.relowner
+WHERE c.relkind = 'm'
+ORDER BY schema_name, materialized_view_name;
+
+
