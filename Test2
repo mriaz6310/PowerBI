@@ -101,18 +101,17 @@ WHERE c.relkind = 'm'
 ORDER BY materialized_view_name;
 
 
-SELECT schemaname   AS schema_name,
-       tablename    AS materialized_view_name,
-       tableowner   AS owner
-FROM svv_redshift_tables
-WHERE schemaname = 'farm_dm'
-  AND tabletype = 'MATERIALIZED VIEW'
-ORDER BY materialized_view_name;
 
-SELECT schemaname, tablename AS materialized_view_name, tableowner
-FROM svv_redshift_tables
-WHERE tabletype = 'MATERIALIZED VIEW'
-ORDER BY schemaname, materialized_view_name;
+
+
+
+-- What columns does SVV_REDSHIFT_TABLES have on *your* cluster?
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'pg_catalog'
+  AND table_name   = 'svv_redshift_tables'
+ORDER BY ordinal_position;
+
 
 
 
