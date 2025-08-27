@@ -108,17 +108,9 @@ END $$;
 
 
 
-DO $$
-DECLARE r RECORD;
-BEGIN
-  FOR r IN SELECT nspname FROM pg_namespace 
-           WHERE nspname NOT LIKE 'pg_%' 
-             AND nspname NOT IN ('information_schema')
-  LOOP
-    EXECUTE format('GRANT USAGE ON SCHEMA %I TO your_user;', r.nspname);
-    EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO your_user;', r.nspname);
-  END LOOP;
-END$$;
-
+SELECT table_schema, table_name, tableowner
+FROM pg_tables
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY table_schema, table_name;
 
 
