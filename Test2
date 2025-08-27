@@ -108,12 +108,17 @@ END $$;
 
 
 
-SELECT conname AS constraint_name,
-       conrelid::regclass AS table_name,
-       pg_get_constraintdef(oid) AS definition
-FROM pg_constraint
-WHERE contype = 'c'
-ORDER BY conrelid::regclass;
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT nspname FROM pg_namespace 
+           WHERE nspname NOT LIKE 'pg_%' 
+             AND nspname NOT IN ('information_schema')
+  LOOP
+    EXECUTE format('GRANT USAGE ON SCHEMA %I TO your_user;', r.nspname);
+    EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO your_user;', r.nspname);
+  END LOOP;
+END$$;
 
 
 
