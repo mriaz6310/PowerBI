@@ -97,12 +97,14 @@ LEFT JOIN pg_roles r ON r.oid = m.umuser;
 
 
 #check view
+DO $$ 
+DECLARE s TEXT;
+BEGIN
+  FOR s IN SELECT nspname FROM pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname != 'information_schema'
+  LOOP
+    EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO your_user', s);
+  END LOOP;
+END $$;
 
-SELECT conname AS constraint_name,
-       conrelid::regclass AS table_name,
-       pg_get_constraintdef(oid) AS constraint_definition
-FROM pg_constraint
-WHERE contype = 'c'
-ORDER BY conrelid::regclass;
 
 
