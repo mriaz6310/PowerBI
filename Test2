@@ -105,14 +105,19 @@ ORDER BY materialized_view_name;
 
 
 
-SELECT schema_name,
-       table_name,
-       table_type
-FROM pg_catalog.svv_redshift_tables
-WHERE schema_name = 'car_dm'
-  AND table_name ILIKE '%mv%'      -- must contain mv
-  AND table_name ILIKE '%\_0' ESCAPE '\'
-ORDER BY table_name;
+#metadata missing
+-- Should return 1 row
+SELECT schema_name
+FROM information_schema.schemata
+WHERE schema_name = 'information_schema';
+
+-- Show privileges on the schema itself
+SELECT n.nspname AS schema_name, r.rolname AS grantee, a.privilege_type
+FROM pg_namespace n
+LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
+LEFT JOIN pg_roles r ON r.oid = a.grantee
+WHERE n.nspname = 'information_schema';
+
 
 
 
