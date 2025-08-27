@@ -90,55 +90,20 @@ LEFT JOIN pg_roles r ON r.oid = m.umuser;
 
 
 
-SELECT n.nspname AS schema_name,
-       c.relname AS materialized_view_name,
-       r.usename AS owner
+
+
+
+
+
+
+
+SELECT 
+    table_schema,
+    table_name,
+    reltuples::bigint AS estimated_rows
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-JOIN pg_user r      ON r.usesysid = c.relowner
-WHERE c.relkind = 'm'
-  AND n.nspname = 'car_dm'
-ORDER BY materialized_view_name;
-
-
-
-
-
-
-#metadata missing
--- Should return 1 row
-SELECT schema_name
-FROM information_schema.schemata
-WHERE schema_name = 'information_schema';
-
--- Show privileges on the schema itself
-SELECT n.nspname AS schema_name, r.rolname AS grantee, a.privilege_type
-FROM pg_namespace n
-LEFT JOIN LATERAL aclexplode(n.nspacl) a ON true
-LEFT JOIN pg_roles r ON r.oid = a.grantee
-WHERE n.nspname = 'information_schema';
-
-
-
-
-
-SELECT n.nspname AS schema_name,
-       pg_get_userbyid(n.nspowner) AS owner,
-       n.nspacl
-FROM pg_namespace n
-WHERE n.nspname = 'information_schema';
-
-
-SELECT nspname AS schema_name,
-       pg_get_userbyid(nspowner) AS owner
-FROM pg_namespace
-ORDER BY nspname;
-
-
-SELECT schema_name
-FROM information_schema.schemata
-WHERE schema_name = 'information_schema';
-
-
-
+WHERE relkind = 'r'
+  AND n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')
+ORDER BY estimated_rows DESC;
 
