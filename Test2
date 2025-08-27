@@ -122,6 +122,22 @@ WHERE n.nspname = 'information_schema';
 
 
 
+SELECT n.nspname AS schema_name,
+       pg_get_userbyid(n.nspowner) AS owner,
+       n.nspacl
+FROM pg_namespace n
+WHERE n.nspname = 'information_schema';
+
+
+SELECT nspname AS schema_name,
+       pg_get_userbyid(nspowner) AS owner
+FROM pg_namespace
+ORDER BY nspname;
+
+
+SELECT schema_name
+FROM information_schema.schemata
+WHERE schema_name = 'information_schema';
 
 
 
