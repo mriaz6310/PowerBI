@@ -96,15 +96,13 @@ LEFT JOIN pg_roles r ON r.oid = m.umuser;
 
 
 
-SELECT table_name, table_type
-FROM information_schema.tables
-WHERE table_schema = 'information_schema'
-ORDER BY table_name;
+#check view
 
-
-SELECT table_name
-FROM information_schema.views
-WHERE table_schema = 'information_schema'
-  AND table_name = 'check_constraints';
+SELECT conname AS constraint_name,
+       conrelid::regclass AS table_name,
+       pg_get_constraintdef(oid) AS constraint_definition
+FROM pg_constraint
+WHERE contype = 'c'
+ORDER BY conrelid::regclass;
 
 
