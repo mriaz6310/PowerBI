@@ -96,13 +96,8 @@ LEFT JOIN pg_roles r ON r.oid = m.umuser;
 
 
 
+SELECT table_name, table_type
+FROM information_schema.tables
+WHERE table_schema = 'information_schema'
+ORDER BY table_name;
 
-SELECT 
-    n.nspname AS schema_name,
-    c.relname AS table_name,
-    c.reltuples::bigint AS estimated_rows
-FROM pg_class c
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE c.relkind = 'r'
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-ORDER BY n.nspname, c.relname;
