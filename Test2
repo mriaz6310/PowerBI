@@ -121,4 +121,13 @@ JOIN pg_roles r ON n.nspowner = r.oid
 WHERE n.nspname NOT LIKE 'pg_%' AND n.nspname <> 'information_schema';
 
 
+SELECT schemaname AS table_schema,
+       tablename AS table_name,
+       tableowner
+FROM pg_tables
+WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY schemaname, tablename;
+
+
+
 
