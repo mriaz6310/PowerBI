@@ -114,20 +114,14 @@ WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
 ORDER BY table_schema, table_name;
 
 
-SELECT n.nspname AS schema_name,
-       r.rolname AS owner
-FROM pg_namespace n
-JOIN pg_roles r ON n.nspowner = r.oid
-WHERE n.nspname NOT LIKE 'pg_%' AND n.nspname <> 'information_schema';
 
 
-SELECT schemaname AS table_schema,
-       tablename AS table_name,
-       tableowner
-FROM pg_tables
-WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-ORDER BY schemaname, tablename;
-
+SELECT
+  schemaname AS schema_name,
+  viewname AS view_name,
+  viewowner AS owner
+FROM pg_views
+ORDER BY schema_name, view_name;
 
 
 
