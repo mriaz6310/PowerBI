@@ -116,12 +116,18 @@ ORDER BY table_schema, table_name;
 
 
 
-SELECT
-  schemaname AS schema_name,
-  viewname AS view_name,
-  viewowner AS owner
-FROM pg_views
-ORDER BY schema_name, view_name;
+-- Foreign servers in this DB
+SELECT oid, srvname, srvowner::regrole AS owner, srvoptions
+FROM pg_foreign_server
+ORDER BY 1;
+
+-- User mappings visible to you (superusers see all; regular users see their own)
+SELECT umid, srvid::regclass AS server_oid, umuser::regrole AS mapped_user, umoptions
+FROM pg_user_mapping
+ORDER BY 1;
+
+
+
 
 
 
