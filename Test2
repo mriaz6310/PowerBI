@@ -1,56 +1,73 @@
-spark.table("bronze_finance.ts_hdr_hs").createOrReplaceTempView("ts_hdr_hs")
-spark.table("bronze_finance.ts_ln_hs").createOrReplaceTempView("ts_ln_hs")
+spark.table("bronze_finance.syn_lab_hs").createOrReplaceTempView("syn_lab_hs")
 
 
-CREATE OR REPLACE TEMP VIEW silver_fact_resources_view AS
+CREATE OR REPLACE TEMP VIEW silver_fact_resources_txn2 AS
 SELECT
-    -- static and derived IDs
-    -1  AS dim_vendor_id,
-    1   AS dim_transaction_type_id,
-    h.empl_id,
-    h.ts_hdr_seq_no,
-    l.ts_ln_key,
-    l.ts_ln_no,
-    h.ts_dt,
-    l.s_ts_type_cd,
+  -- Dimension IDs (use defaults if you don’t have dim tables yet)
+  -1                               AS dim_vendor_id,
+  NULL                             AS dim_period_id,
+  NULL                             AS dim_project_id,
+  NULL                             AS dim_employee_id,
+  NULL                             AS dim_glaccount_id,
+  NULL                             AS dim_organization_id,
 
-    -- core metrics
-    CASE WHEN l.entered_hrs <> 0 THEN l.lab_cst_amt / l.entered_hrs ELSE 0 END AS hourly_rate,
-    l.entered_hrs                               AS hours,
-    l.entered_hrs                               AS hours_pool_calc,
-    l.lab_cst_amt                               AS lab_cost_amt,
+  2                                AS dim_transaction_type_id,  -- << Txn 2
+  1                                AS dim_pool_id,
+  -1                               AS dim_vendor_emplid,
+  NULL                             AS dim_schedule_period_id,
+  NULL                             AS dim_ts_id,
 
-    -- derived hour metrics
-    CASE WHEN l.pay_type IN ('S10','S15') THEN 0 ELSE l.chg_hrs END AS hours_reported,
-    COALESCE(l.pay_type,'-NA')               AS pay_type,
+  -- Keys / natural identifiers (Txn 2 is from LAB_HS, not TS header/line)
+  NULL                             AS ts_hdr_seq_no,
+  l.lab_hs_key                     AS ts_ln_key,        -- use LAB key as the line key
+  NULL                             AS ts_ln_no,
 
-    -- categorical defaults
-    COALESCE(l.bill_lab_cat_cd,'-NA')        AS bill_lab_cat_cd,
-    COALESCE(l.genl_lab_cat_cd,'-NA')        AS genl_lab_cat_cd,
-    COALESCE(l.lab_loc_cd,'-NA')             AS lab_loc_cd,
+  -- Dates
+  l.period_date                    AS ts_dt,
 
-    -- flag logic
-    CASE 
-        WHEN l.s_ts_type_cd = 'C' 
-         AND (l.notes LIKE '%75 line%' OR l.notes LIKE '%75line%') 
-        THEN 1 ELSE 0 
-    END AS ppa_flag,
+  -- Resource + amounts
+  'E'                              AS resource_type,
+  CASE WHEN COALESCE(l.act_hrs,0) <> 0
+       THEN COALESCE(l.act_amt,0) / l.act_hrs
+       ELSE 0 END                  AS hourly_rate,
+  COALESCE(l.act_hrs,0)            AS hours,
+  COALESCE(l.act_hrs,0)            AS hours_pool_calc,
+  COALESCE(l.act_amt,0)            AS lab_cst_amt,      -- “Direct Cost” in your proc
 
-    CASE 
-        WHEN l.s_ts_type_cd = 'C'
-         AND h.ts_hdr_seq_no = 1 
-         AND l.ts_ln_no = 1 
-        THEN 1 ELSE 0 
-    END AS ppa_count,
+  -- Entered/charge hours (Txn2 uses ACT_*; align to fact shape)
+  COALESCE(l.act_hrs,0)            AS entered_hrs,
+  COALESCE(l.act_hrs,0)            AS chg_hrs,
+  COALESCE(l.act_hrs,0)            AS hours_reported,
 
-    -- audit metadata
-    l.notes,
-    l.time_stamp         AS last_modified_date,
-    current_timestamp()  AS created_date,
-    'bronze_to_silver_job' AS created_user
-FROM ts_hdr_hs h
-JOIN ts_ln_hs  l
-  ON h.ts_dt          = l.ts_dt
- AND h.empl_id        = l.empl_id
- AND h.s_ts_type_cd   = l.s_ts_type_cd
- AND h.ts_hdr_seq_no  = l.ts_hdr_seq_no;
+  -- Categorical fields
+  COALESCE(l.pay_type, '-NA')      AS pay_type,
+  COALESCE(l.bill_lab_cat_cd,'-NA') AS bill_lab_cat_cd,
+  COALESCE(l.genl_lab_cat_cd,'-NA') AS genl_lab_cat_cd,
+  '-NA'                            AS lab_loc_cd,
+  NULL                             AS s_ts_type_cd,
+  NULL                             AS ts_ln_source_cd,
+
+  -- Rates and financials (per your proc Txn 2 = 0 for revenue/billing)
+  0                                AS target_rate,
+  0                                AS actual_rate,
+  COALESCE(l.act_amt,0)            AS amt_target,
+  COALESCE(l.act_amt,0)            AS amt_actual,
+  0                                AS amt_revenue,
+  0                                AS amt_billing,
+  COALESCE(l.act_amt,0)            AS direct_cost,
+  0                                AS indirect_cost,
+
+  -- PPA flags/counters/days (0 in Txn 2)
+  0                                AS ppa_flag,
+  0                                AS ppa_count,
+  0                                AS ppa_days,
+
+  -- Notes & audit
+  l.notes                          AS notes,
+  current_timestamp()              AS created_date,
+  'bronze_to_silver_job'           AS created_user,
+  l.time_stamp                     AS last_modified_date,
+  'bronze_to_silver_job'           AS last_modified_user
+FROM syn_lab_hs l
+WHERE l.empl_id IS NOT NULL;
+
