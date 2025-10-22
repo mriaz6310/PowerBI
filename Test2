@@ -1,73 +1,218 @@
-spark.table("bronze_finance.syn_lab_hs").createOrReplaceTempView("syn_lab_hs")
+-- If you’re in Unity Catalog, set your catalog if needed:
+-- USE CATALOG main;
 
+-- Make header & line bronze tables easy to reference
+CREATE OR REPLACE TEMP VIEW ts_hdr_hs AS
+SELECT * FROM bronze_finance.ts_hdr_hs;
 
-CREATE OR REPLACE TEMP VIEW silver_fact_resources_txn2 AS
+CREATE OR REPLACE TEMP VIEW ts_ln_hs AS
+SELECT * FROM bronze_finance.ts_ln_hs;
+
+-- Optional: register other bronze/dim tables if they exist.
+-- CREATE OR REPLACE TEMP VIEW dim_project         AS SELECT * FROM bronze_finance.dim_project;
+-- CREATE OR REPLACE TEMP VIEW dim_project_rpl     AS SELECT * FROM bronze_finance.dim_project;   -- same table, different alias
+-- CREATE OR REPLACE TEMP VIEW dim_glaccount       AS SELECT * FROM bronze_finance.dim_glaccount;
+-- CREATE OR REPLACE TEMP VIEW dim_organization    AS SELECT * FROM bronze_finance.dim_organization;
+-- CREATE OR REPLACE TEMP VIEW dim_schedule_period AS SELECT * FROM bronze_finance.dim_schedule_period;
+-- CREATE OR REPLACE TEMP VIEW dim_period          AS SELECT * FROM bronze_finance.dim_period;
+-- CREATE OR REPLACE TEMP VIEW dim_ts              AS SELECT * FROM bronze_finance.dim_ts;
+-- CREATE OR REPLACE TEMP VIEW dim_employee        AS SELECT * FROM bronze_finance.dim_employee;
+-- CREATE OR REPLACE TEMP VIEW ref_lab_cat_rate    AS SELECT * FROM bronze_finance.ref_lab_cat_rate;
+-- CREATE OR REPLACE TEMP VIEW syn_billing_detl_hist AS SELECT * FROM bronze_finance.syn_billing_detl_hist;
+
+CREATE OR REPLACE TEMP VIEW fact_resources_temp AS
 SELECT
-  -- Dimension IDs (use defaults if you don’t have dim tables yet)
-  -1                               AS dim_vendor_id,
-  NULL                             AS dim_period_id,
-  NULL                             AS dim_project_id,
-  NULL                             AS dim_employee_id,
-  NULL                             AS dim_glaccount_id,
-  NULL                             AS dim_organization_id,
+  /* ---- dimension ids (use -1/NULL fallbacks until you hook up dims) ---- */
+  -1                                AS dim_vendor_id,
+  /* t.dim_period_id               AS dim_period_id, */        NULL AS dim_period_id,
+  /* p.dim_project_id              AS dim_project_id, */       NULL AS dim_project_id,
+  /* e.dim_employee_id             AS dim_employee_id, */      NULL AS dim_employee_id,
+  /* a.dim_glaccount_id            AS dim_glaccount_id, */     NULL AS dim_glaccount_id,
+  /* o.dim_organization_id         AS dim_organization_id, */  NULL AS dim_organization_id,
 
-  2                                AS dim_transaction_type_id,  -- << Txn 2
-  1                                AS dim_pool_id,
-  -1                               AS dim_vendor_emplid,
-  NULL                             AS dim_schedule_period_id,
-  NULL                             AS dim_ts_id,
+  1                                 AS dim_transaction_type_id,
+  1                                 AS dim_pool_id,
+  -1                                AS dim_vendor_emplid,
 
-  -- Keys / natural identifiers (Txn 2 is from LAB_HS, not TS header/line)
-  NULL                             AS ts_hdr_seq_no,
-  l.lab_hs_key                     AS ts_ln_key,        -- use LAB key as the line key
-  NULL                             AS ts_ln_no,
+  /* sp.dim_schedule_period_id     AS dim_schedule_period_id,*/ NULL AS dim_schedule_period_id,
+  /* coalesce(ts.dim_ts_id,-1)     AS dim_ts_id, */             -1 AS dim_ts_id,
 
-  -- Dates
-  l.period_date                    AS ts_dt,
+  /* ---- natural keys / ids ---- */
+  l.ts_hdr_seq_no,
+  l.ts_ln_key,
+  l.ts_ln_no,
+  h.ts_dt,
 
-  -- Resource + amounts
-  'E'                              AS resource_type,
-  CASE WHEN COALESCE(l.act_hrs,0) <> 0
-       THEN COALESCE(l.act_amt,0) / l.act_hrs
-       ELSE 0 END                  AS hourly_rate,
-  COALESCE(l.act_hrs,0)            AS hours,
-  COALESCE(l.act_hrs,0)            AS hours_pool_calc,
-  COALESCE(l.act_amt,0)            AS lab_cst_amt,      -- “Direct Cost” in your proc
+  /* ---- metrics & derivations ---- */
+  'E'                               AS resource_type,
+  CASE
+    WHEN coalesce(l.entered_hrs,0) <> 0 THEN coalesce(l.lab_cst_amt,0) / l.entered_hrs
+    ELSE 0
+  END                               AS hourly_rate,
 
-  -- Entered/charge hours (Txn2 uses ACT_*; align to fact shape)
-  COALESCE(l.act_hrs,0)            AS entered_hrs,
-  COALESCE(l.act_hrs,0)            AS chg_hrs,
-  COALESCE(l.act_hrs,0)            AS hours_reported,
+  coalesce(l.entered_hrs,0)         AS hours,
+  coalesce(l.entered_hrs,0)         AS hours_pool_calc,
+  coalesce(l.lab_cst_amt,0)         AS lab_cst_amt,
 
-  -- Categorical fields
-  COALESCE(l.pay_type, '-NA')      AS pay_type,
-  COALESCE(l.bill_lab_cat_cd,'-NA') AS bill_lab_cat_cd,
-  COALESCE(l.genl_lab_cat_cd,'-NA') AS genl_lab_cat_cd,
-  '-NA'                            AS lab_loc_cd,
-  NULL                             AS s_ts_type_cd,
-  NULL                             AS ts_ln_source_cd,
+  coalesce(l.entered_hrs,0)         AS entered_hrs,
+  coalesce(l.chg_hrs,0)             AS chg_hrs,
 
-  -- Rates and financials (per your proc Txn 2 = 0 for revenue/billing)
-  0                                AS target_rate,
-  0                                AS actual_rate,
-  COALESCE(l.act_amt,0)            AS amt_target,
-  COALESCE(l.act_amt,0)            AS amt_actual,
-  0                                AS amt_revenue,
-  0                                AS amt_billing,
-  COALESCE(l.act_amt,0)            AS direct_cost,
-  0                                AS indirect_cost,
+  CASE
+    WHEN l.pay_type IN ('S10','S15') THEN 0
+    ELSE coalesce(l.chg_hrs,0)
+  END                               AS hours_reported,
 
-  -- PPA flags/counters/days (0 in Txn 2)
-  0                                AS ppa_flag,
-  0                                AS ppa_count,
-  0                                AS ppa_days,
+  h.ts_dt                            AS hours_date,
 
-  -- Notes & audit
-  l.notes                          AS notes,
-  current_timestamp()              AS created_date,
-  'bronze_to_silver_job'           AS created_user,
-  l.time_stamp                     AS last_modified_date,
-  'bronze_to_silver_job'           AS last_modified_user
-FROM syn_lab_hs l
-WHERE l.empl_id IS NOT NULL;
+  coalesce(l.pay_type,'-NA')         AS pay_type,
+  coalesce(l.bill_lab_cat_cd,'-NA')  AS bill_lab_cat_cd,
+  coalesce(l.genl_lab_cat_cd,'-NA')  AS genl_lab_cat_cd,
+  coalesce(l.lab_loc_cd,'-NA')       AS lab_loc_cd,
 
+  l.s_ts_type_cd,
+  /* l.ts_ln_source_cd */            NULL AS ts_ln_source_cd,
+
+  /* ---- rate placeholders if you add rate tables later ---- */
+  /* target_rate */                  0   AS target_rate,
+  /* actual_rate */                  0   AS actual_rate,
+
+  /* base amounts */
+  coalesce(l.lab_cst_amt,0)          AS amt_target,
+  coalesce(l.lab_cst_amt,0)          AS amt_actual,
+
+  /* ----- REVENUE ----- */
+  CASE
+    /* CPFH: lab cost + hours * rev_calc_amt (hourly fee) */
+    WHEN rpl.s_rev_formula_cd = 'CPFH'
+      THEN coalesce(l.lab_cst_amt,0) + coalesce(l.entered_hrs,0) * coalesce(rpl.rev_calc_amt,0)
+
+    /* CPFC: lab cost * (1 + pct/100) */
+    WHEN rpl.s_rev_formula_cd = 'CPFC'
+      THEN coalesce(l.lab_cst_amt,0) * (1 + coalesce(rpl.rev_calc_amt,0)/100.0)
+
+    /* rate missing */
+    WHEN rr.bill_rt_amt IS NULL
+      THEN 0
+
+    /* LLR/LLRCINL/LLRCINLB: hours * bill rate */
+    WHEN rpl.s_rev_formula_cd IN ('LLRCINLB','LLRCINL','LLR')
+      THEN coalesce(l.entered_hrs,0) * coalesce(rr.bill_rt_amt,0)
+
+    ELSE 0
+  END                               AS amt_revenue,
+
+  /* ----- BILLING ----- */
+  CASE
+    WHEN bdh.billed_amt IS NOT NULL
+      THEN bdh.billed_amt
+
+    WHEN rpl.s_rev_formula_cd = 'CPFH'
+      THEN coalesce(l.lab_cst_amt,0) + coalesce(l.entered_hrs,0) * coalesce(rpl.rev_calc_amt,0)
+
+    WHEN rpl.s_rev_formula_cd = 'CPFC'
+      THEN coalesce(l.lab_cst_amt,0) * (1 + coalesce(rpl.rev_calc_amt,0)/100.0)
+
+    WHEN rr.bill_rt_amt IS NULL
+      THEN 0
+
+    WHEN rpl.s_rev_formula_cd IN ('LLRBENLBF','LLRENLBF')
+      THEN coalesce(l.entered_hrs,0) * coalesce(rr.bill_rt_amt,0) * (1 + coalesce(rpl.rev_calc_amt,0)/100.0)
+
+    WHEN rpl.s_rev_formula_cd IN ('LLRCINLB','LLRCINL','LLR')
+      THEN coalesce(l.entered_hrs,0) * coalesce(rr.bill_rt_amt,0)
+
+    ELSE 0
+  END                               AS amt_billing,
+
+  coalesce(l.lab_cst_amt,0)          AS direct_cost,
+  0                                  AS indirect_cost,
+
+  /* flags */
+  CASE
+    WHEN l.ts_ln_source_cd = 'LDPUPET' AND l.s_ts_type_cd = 'C' THEN 1
+    WHEN l.s_ts_type_cd = 'C' AND (l.notes LIKE '%75 line%' OR l.notes LIKE '%75line%') THEN 1
+    ELSE 0
+  END                               AS ppa_flag,
+
+  CASE
+    WHEN l.ts_ln_source_cd = 'LDPUPET' AND l.s_ts_type_cd = 'C'
+         AND h.ts_hdr_seq_no = 1 AND l.ts_ln_no = 1 THEN 1
+    WHEN l.s_ts_type_cd = 'C' AND (l.notes LIKE '%75 line%' OR l.notes LIKE '%75line%')
+         AND h.ts_hdr_seq_no = 1 AND l.ts_ln_no = 1 THEN 1
+    ELSE 0
+  END                               AS ppa_count,
+
+  /* Spark: datediff(end,start) */
+  datediff(
+    t.period_date,                   -- end
+    coalesce(h.pay_pd_end_dt, h.ts_dt)  -- start
+  )                                 AS ppa_days,
+
+  l.notes                            AS notes,
+
+  current_timestamp()                AS created_date,
+  'SSIS Process'                     AS created_user,
+  l.time_stamp                       AS last_modified_date,
+  'SSIS Process'                     AS last_modified_user
+
+FROM ts_hdr_hs h
+JOIN ts_ln_hs  l
+  ON  h.ts_dt        = l.ts_dt
+  AND h.empl_id      = l.empl_id
+  AND h.s_ts_type_cd = l.s_ts_type_cd
+  AND h.ts_hdr_seq_no= l.ts_hdr_seq_no
+
+/* ---- Un-comment these joins once the tables exist in bronze_finance ----
+LEFT JOIN dim_project            p   ON l.proj_id  = p.proj_id
+LEFT JOIN dim_project_rpl        rpl ON p.revenue_proj_lvl_dim_project_id = rpl.dim_project_id
+LEFT JOIN dim_glaccount          a   ON l.acct_id  = a.acct_id
+LEFT JOIN dim_organization       o   ON l.org_id   = o.org_id
+LEFT JOIN dim_schedule_period    sp  ON (CASE WHEN h.pd_no = 13 THEN l.ts_dt
+                                              WHEN h.ts_dt <> h.pay_pd_end_dt THEN h.pay_pd_end_dt
+                                              ELSE h.ts_dt END) = sp.end_dt
+LEFT JOIN dim_period             t   ON h.fy_cd = t.fy_cd AND h.pd_no = t.pd_no AND h.sub_pd_no = t.sub_prd_no
+LEFT JOIN dim_ts                 ts  ON h.empl_id = ts.empl_id
+                                       AND (CASE WHEN h.ts_dt <> h.pay_pd_end_dt THEN h.pay_pd_end_dt ELSE h.ts_dt END) = ts.end_dt
+                                       AND ts.last_revision_flag = 1
+LEFT JOIN dim_employee           e   ON h.empl_id = e.empl_id
+                                       AND (CASE WHEN h.ts_dt <> h.pay_pd_end_dt THEN h.pay_pd_end_dt ELSE h.ts_dt END)
+                                           BETWEEN e.effective_date AND e.expiration_date
+LEFT JOIN ref_lab_cat_rate       rr  ON p.ref_lab_cat_rate_proj_id = rr.proj_id
+                                       AND (CASE WHEN h.ts_dt <> h.pay_pd_end_dt THEN h.pay_pd_end_dt ELSE h.ts_dt END)
+                                           BETWEEN rr.start_dt AND rr.end_dt
+                                       AND l.bill_lab_cat_cd = rr.bill_lab_cat_cd
+LEFT JOIN (
+  SELECT
+    bdh.id,
+    bdh.trn_proj_id,
+    bdh.ts_dt,
+    bdh.org_id,
+    bdh.acct_id,
+    bdh.post_fy_cd,
+    bdh.post_pd_no,
+    bdh.post_sub_pd_no,
+    bdh.trn_hrs,
+    bdh.trn_amt,
+    /* you had SUM/AVG conditional expressions; simplify to SUM with CASEs */
+    SUM(CASE WHEN bdh.trn_hrs <> bdh.billed_hrs THEN bdh.billed_amt ELSE 0 END)
+      + AVG(CASE WHEN bdh.trn_hrs <> bdh.billed_hrs THEN 0 ELSE bdh.billed_amt END) AS billed_amt,
+    SUM(CASE WHEN bdh.trn_hrs <> bdh.billed_hrs THEN bdh.billed_hrs ELSE 0 END)
+      + AVG(CASE WHEN bdh.trn_hrs <> bdh.billed_hrs THEN 0 ELSE bdh.billed_hrs END) AS billed_hrs
+  FROM bronze_finance.syn_billing_detl_hist bdh
+  WHERE bdh.s_id_type = 'E' AND bdh.s_jnl_cd = 'LD'
+  GROUP BY
+    bdh.id, bdh.trn_proj_id, bdh.ts_dt, bdh.org_id, bdh.acct_id,
+    bdh.post_fy_cd, bdh.post_pd_no, bdh.post_sub_pd_no, bdh.trn_hrs, bdh.trn_amt
+) bdh
+  ON  l.ts_dt     = bdh.ts_dt
+  AND l.empl_id   = bdh.id
+  AND l.acct_id   = bdh.acct_id
+  AND l.proj_id   = bdh.trn_proj_id
+  AND l.org_id    = bdh.org_id
+  AND l.entered_hrs = bdh.trn_hrs
+  AND l.lab_cst_amt = bdh.trn_amt
+  AND h.fy_cd     = bdh.post_fy_cd
+  AND h.pd_no     = bdh.post_pd_no
+  AND h.sub_pd_no = bdh.post_sub_pd_no
+---- */
+;
