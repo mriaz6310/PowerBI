@@ -239,3 +239,20 @@ WHERE n.nspname NOT IN ('pg_catalog','information_schema')
   AND n.nspname NOT LIKE 'pg_toast%'
   AND n.nspname NOT LIKE 'pg_temp_%'
 ORDER BY n.nspname;
+
+
+# Clear all cached tables
+spark.catalog.clearCache()
+
+# Drop temp views if you use them
+for v in spark.catalog.listTables():
+    if v.isTemporary:
+        spark.catalog.dropTempView(v.name)
+
+
+for df in [df1, df2]:  # replace with real dfs
+    try:
+        df.unpersist()
+    except:
+        pass
+
