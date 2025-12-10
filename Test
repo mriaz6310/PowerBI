@@ -256,3 +256,8 @@ for df in [df1, df2]:  # replace with real dfs
     except:
         pass
 
+# 1) Table schema
+spark.table("silver_finance.Fact_resources").select("TS_DT").printSchema()
+
+# 2) DataFrame schema
+fact_resources.select("TS_DT").printSchema()
