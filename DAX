@@ -1,639 +1,332 @@
-SELECT 
-  'GRANT "' || pg_get_userbyid(roleid) || '" TO "' || pg_get_userbyid(member) || '";'
-FROM pg_auth_members
-WHERE pg_get_userbyid(roleid) NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
-  AND pg_get_userbyid(member) NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
-ORDER BY 1;
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                                    INGEST LAYER (1B objects/day)                            │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                    ┌─────────────────────────┼─────────────────────────┐  
+                    │                         │                         │  
+                    ▼                         ▼                         ▼  
+         ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  
+         │  SIGINT Feeds    │      │  Document Upload │      │   Audio/Video    │  
+         │  (Streaming)     │      │   (Batch Files)  │      │    Streams       │  
+         └──────────────────┘      └──────────────────┘      └──────────────────┘  
+                    │                         │                         │  
+                    └─────────────────────────┼─────────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Amazon Kinesis      │  
+                                   │  Data Streams        │  
+                                   │  (Buffer & Decouple) │  
+                                   │  • 7-day retention   │  
+                                   │  • Auto-scaling      │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Amazon S3 (Raw)     │  
+                                   │  • Versioning ON     │  
+                                   │  • Encryption: KMS   │  
+                                   │  • Lifecycle: 30d    │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                              CONTENT EXTRACTION LAYER                                        │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                    ┌─────────────────────────┼─────────────────────────┐  
+                    │                         │                         │  
+                    ▼                         ▼                         ▼  
+         ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  
+         │  Tesseract OCR   │      │  Whisper ASR     │      │  Apache Tika     │  
+         │  (Self-Hosted)   │      │  (Self-Hosted)   │      │  (Text Extract)  │  
+         │                  │      │                  │      │                  │  
+         │  • EC2 GPU       │      │  • SageMaker     │      │  • AWS Lambda    │  
+         │  • ECS Fargate   │      │  • Endpoint      │      │  • ECS Fargate   │  
+         └──────────────────┘      └──────────────────┘      └──────────────────┘  
+                    │                         │                         │  
+                    └─────────────────────────┼─────────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Text Normalization  │  
+                                   │  • Language detect   │  
+                                   │  • Encoding fix      │  
+                                   │  • AWS Lambda        │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Amazon S3           │  
+                                   │  (Extracted Text)    │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                            CHUNKING & EMBEDDING LAYER                                        │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Adaptive Chunking   │  
+                                   │  • Semantic boundary │  
+                                   │  • 512 token chunks  │  
+                                   │  • 50 token overlap  │  
+                                   │  • ECS Fargate       │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Chunk Metadata      │  
+                                   │  • Parent doc ID     │  
+                                   │  • Chunk position    │  
+                                   │  • Timestamp         │  
+                                   │  • DynamoDB          │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  EMBEDDING MODEL (Self-Hosted)         │  
+                         │  ════════════════════════════════════  │  
+                         │  Model: multilingual-e5-large          │  
+                         │  OR Mistral-7B (fine-tuned)            │  
+                         │  ────────────────────────────────────  │  
+                         │  • Amazon SageMaker Endpoint           │  
+                         │  • EC2 GPU instances (g5.xlarge)       │  
+                         │  • Auto-scaling: 10-100 instances      │  
+                         │  • Output: 1024-dim vectors            │  
+                         │  ────────────────────────────────────  │  
+                         │  Model Storage:                        │  
+                         │  • S3 bucket (encrypted)               │  
+                         │  • ECR (container images)              │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                          HYBRID VECTOR STORAGE (3-Tier)                                      │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                    ┌─────────────────────────┼─────────────────────────┐  
+                    │                         │                         │  
+                    ▼                         ▼                         ▼  
+         ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  
+         │   HOT TIER       │      │   WARM TIER      │      │   COLD TIER      │  
+         │   (0-30 days)    │      │   (30d-1yr)      │      │   (1-5 years)    │  
+         │  ──────────────  │      │  ──────────────  │      │  ──────────────  │  
+         │  ~30B vectors    │      │  ~300B vectors   │      │  ~700B vectors   │  
+         │                  │      │                  │      │                  │  
+         │  Technology:     │      │  Technology:     │      │  Technology:     │  
+         │  • OpenSearch    │      │  • Milvus on EKS │      │  • S3 + Parquet  │  
+         │    k-NN (HNSW)   │      │  • DiskANN       │      │  • IVF-PQ Index  │  
+         │  • In-Memory     │      │  • NVMe SSD      │      │  • Compressed    │  
+         │                  │      │                  │      │                  │  
+         │  Recall: 97%+    │      │  Recall: 95%     │      │  Recall: 88%     │  
+         │  Latency: <200ms │      │  Latency: <1s    │      │  Latency: <5s    │  
+         └──────────────────┘      └──────────────────┘      └──────────────────┘  
+                                              │  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                          KEYWORD SEARCH (BM25) - Parallel Path                               │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                                   ┌──────────────────────┐  
+                                   │  Amazon OpenSearch   │  
+                                   │  (Inverted Index)    │  
+                                   │  • BM25 scoring      │  
+                                   │  • Full-text search  │  
+                                   │  • Phrase matching   │  
+                                   └──────────────────────┘  
+                                              │  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                          KNOWLEDGE GRAPH LAYER (Entity Enrichment)                          │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                                   ┌──────────────────────┐  
+                                   │  NER Pipeline        │  
+                                   │  (Self-Hosted)       │  
+                                   │  • spaCy on Lambda   │  
+                                   │  • Custom models     │  
+                                   │  • Entity extraction │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Amazon Neptune      │  
+                                   │  (Graph Database)    │  
+                                   │  • Entities (nodes)  │  
+                                   │  • Relations (edges) │  
+                                   │  • Gremlin queries   │  
+                                   └──────────────────────┘  
+                                              │  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                                  QUERY PIPELINE                                              │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                                   ┌──────────────────────┐  
+                                   │  API Gateway + WAF   │  
+                                   │  • Authentication    │  
+                                   │  • Rate limiting     │  
+                                   │  • TLS termination   │  
+                                   └──────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Query Orchestrator (ECS Fargate)      │  
+                         │  ════════════════════════════════════  │  
+                         │  1. Query Analysis                     │  
+                         │     • Language detection               │  
+                         │     • Intent classification            │  
+                         │                                        │  
+                         │  2. Query Expansion (Self-Hosted LLM)  │  
+                         │     • Mistral-7B on SageMaker          │  
+                         │     • Generate 3-5 query variants      │  
+                         │                                        │  
+                         │  3. Filter Analysis                    │  
+                         │     • Selectivity estimation           │  
+                         │     • Route to appropriate tier        │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                    ┌─────────────────────────┼─────────────────────────┐  
+                    │                         │                         │  
+                    ▼                         ▼                         ▼  
+         ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  
+         │  Vector Search   │      │  Keyword Search  │      │  Graph Search    │  
+         │  (Semantic)      │      │  (BM25)          │      │  (Entity-based)  │  
+         │                  │      │                  │      │                  │  
+         │  • OpenSearch    │      │  • OpenSearch    │      │  • Neptune       │  
+         │  • Milvus        │      │  • Exact match   │      │  • Related docs  │  
+         │  • Top 100       │      │  • Top 100       │      │  • Top 50        │  
+         └──────────────────┘      └──────────────────┘      └──────────────────┘  
+                    │                         │                         │  
+                    └─────────────────────────┼─────────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Result Fusion (RRF)                   │  
+                         │  • Reciprocal Rank Fusion              │  
+                         │  • Merge 3 result sets                 │  
+                         │  • Top 100 candidates                  │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Re-Ranker (Self-Hosted)               │  
+                         │  ════════════════════════════════════  │  
+                         │  Model: ColBERT-v2 or MiniLM           │  
+                         │  • SageMaker Endpoint                  │  
+                         │  • Cross-encoder scoring               │  
+                         │  • Token-level matching                │  
+                         │  • Re-rank top 100 → top 10            │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Temporal Decay Scoring                │  
+                         │  • Boost recent documents              │  
+                         │  • Configurable decay function         │  
+                         │  • Mission-specific weighting          │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Result Assembly                       │  
+                         │  • Retrieve full documents (S3)        │  
+                         │  • Fetch metadata (DynamoDB)           │  
+                         │  • Highlight relevant passages         │  
+                         │  • Generate explanations               │  
+                         └────────────────────────────────────────┘  
+                                              │  
+                                              ▼  
+                                   ┌──────────────────────┐  
+                                   │  Final Results       │  
+                                   │  • Top 10 documents  │  
+                                   │  • Relevance scores  │  
+                                   │  • Highlighted text  │  
+                                   │  • Entity links      │  
+                                   └──────────────────────┘  
+                                              │  
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐  
+│                          MONITORING & FEEDBACK LAYER                                        │  
+└─────────────────────────────────────────────────────────────────────────────────────────────┘  
+                                              │  
+                    ┌─────────────────────────┼─────────────────────────┐  
+                    │                         │                         │  
+                    ▼                         ▼                         ▼  
+         ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  
+         │  CloudWatch      │      │  Analyst Feedback│      │  Audit Logs      │  
+         │  • Metrics       │      │  • Click-through │      │  • CloudTrail    │  
+         │  • Logs          │      │  • Relevance     │      │  • S3 (immutable)│  
+         │  • Alarms        │      │  • DynamoDB      │      │  • 7-year retain │  
+         └──────────────────┘      └──────────────────┘      └──────────────────┘  
+                    │                         │                         │  
+                    └─────────────────────────┼─────────────────────────┘  
+                                              │  
+                                              ▼  
+                         ┌────────────────────────────────────────┐  
+                         │  Model Fine-Tuning Pipeline            │  
+                         │  • Quarterly retraining                │  
+                         │  • SageMaker Training Jobs             │  
+                         │  • A/B testing framework               │  
+                         └────────────────────────────────────────┘  
+
+
+
+Technology Stack Summary
+Ingest & Storage
+Amazon Kinesis Data Streams: High-throughput data ingestion buffer
+Amazon S3: Primary data lake with lifecycle policies
+Amazon S3 Glacier Deep Archive: Long-term cold storage
+Content Extraction
+Tesseract OCR: Self-hosted on EC2/ECS for image-to-text
+Whisper (OpenAI): Self-hosted on SageMaker for audio transcription
+Apache Tika: Text extraction on Lambda/ECS
+Embedding Generation
+multilingual-e5-large or Mistral-7B: Self-hosted on SageMaker Endpoints
+Amazon SageMaker: Model hosting and auto-scaling
+EC2 GPU instances (g5.xlarge): Alternative hosting for custom setups
+Vector Storage (3-Tier)
+Hot Tier: Amazon OpenSearch with k-NN (HNSW algorithm)
+Warm Tier: Milvus on EKS with DiskANN
+Cold Tier: S3 + Parquet with IVF-PQ compression
+Keyword Search
+Amazon OpenSearch: BM25 inverted index for exact matching
+Knowledge Graph
+Amazon Neptune: Graph database for entity relationships
+spaCy: Self-hosted NER on Lambda
+Query Pipeline
+Amazon API Gateway + WAF: Secure API endpoint
+ECS Fargate: Stateless query orchestrator
+Mistral-7B on SageMaker: Query expansion
+ColBERT-v2 or MiniLM on SageMaker: Re-ranking
+Metadata & Orchestration
+Amazon DynamoDB: Fast metadata lookup (parent-child relationships)
+AWS Lambda: Event-driven processing triggers
+Amazon EKS: Container orchestration for Milvus
+Monitoring & Compliance
+Amazon CloudWatch: Logs, metrics, and alarms
+AWS CloudTrail: Immutable audit logs
+DynamoDB: Analyst feedback storage
+Key Architecture Principles
+1. Filter-Then-Rank Guarantee
+The architecture enforces pre-query filtering at multiple levels:
+
+Payload-indexed HNSW in OpenSearch (filters applied during vector search)
+Segment routing in Milvus (partition by time/classification)
+Selectivity estimation routes high-selectivity queries to exact search
+2. C2S Compliance
+No external APIs: All models are self-hosted
+AWS-native services only: No Bedrock, no Datadog
+Air-gapped operation: All processing stays within the security boundary
+3. Scalability
+Horizontal scaling: ECS Fargate, SageMaker auto-scaling
+Tiered storage: Hot/warm/cold tiers optimize cost and performance
+Distributed processing: Kinesis + Lambda for parallel processing
+4. Mission-Specific Features
+Temporal decay scoring: Prioritizes recent intelligence
+Knowledge graph enrichment: Entity-based result expansion
+Multilingual support: Cross-lingual semantic search
+Acoustic embeddings: Audio similarity search (wav2vec 2.0)
+This architecture provides a comprehensive, NSA-compliant solution that handles 1 trillion objects with sub-second query latency while maintaining strict security and compliance requirements.
 
-
-SELECT 
-  'GRANT ' || privilege_type || ' ON "' || table_schema || '"."' || table_name || '" TO "' || grantee || '";'
-FROM information_schema.role_table_grants
-WHERE grantee NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
-ORDER BY grantee, table_schema, table_name;
-
-
-
-SELECT 
-  'GRANT USAGE ON SCHEMA "' || n.nspname || '" TO "' || r.rolname || '";'
-FROM pg_roles r
-CROSS JOIN pg_namespace n
-WHERE n.nspname NOT LIKE 'pg_%'
-  AND n.nspname <> 'information_schema'
-  AND r.rolname NOT IN ('postgres', 'rdsadmin', 'rdsproxy')
-ORDER BY 1;
-
-
-SELECT 
-  n.nspname AS schema_name,
-  'postgrestestadm' AS grantee,
-  has_schema_privilege('postgrestestadm', n.nspname, 'USAGE') AS has_usage,
-  has_schema_privilege('postgrestestadm', n.nspname, 'CREATE') AS has_create
-FROM pg_namespace n
-WHERE n.nspname NOT LIKE 'pg_%'
-  AND n.nspname <> 'information_schema'
-ORDER BY n.nspname;
-
-
-
-
-
-
-BEGIN
-  rdsadmin.rdsadmin_util.create_directory(
-    p_directory_name => 'DATA_PUMP_DIR'
-  );
-END;
-/
-
--- Then run your Data Pump job via PL/SQL or SQL Developer
-
-
-BEGIN
-  rdsadmin.rdsadmin_util.export_rds_datafile(
-    p_directory_name => 'DATA_PUMP_DIR',
-    p_prefix         => 'my_export',
-    p_parallel       => 2,
-    p_compression    => 'ALL'
-  );
-END;
-/
-
-
-
-
-
-
-DECLARE
-  l_dp_handle NUMBER;
-BEGIN
-  -- Open export job (FULL export)
-  l_dp_handle := DBMS_DATAPUMP.OPEN(
-    operation => 'EXPORT',
-    job_mode  => 'FULL',
-    job_name  => 'MY_EXPORT_JOB'
-  );
-
-  -- Add dump file
-  DBMS_DATAPUMP.ADD_FILE(
-    handle    => l_dp_handle,
-    filename  => 'my_export.dmp',
-    directory => 'DATA_PUMP_DIR'
-  );
-
-  -- Add log file
-  DBMS_DATAPUMP.ADD_FILE(
-    handle    => l_dp_handle,
-    filename  => 'my_export.log',
-    directory => 'DATA_PUMP_DIR',
-    filetype  => DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE
-  );
-
-  -- Start job
-  DBMS_DATAPUMP.START_JOB(l_dp_handle);
-
-  -- Detach so job runs in background
-  DBMS_DATAPUMP.DETACH(l_dp_handle);
-END;
-/
-
-
-SELECT * FROM TABLE(RDSADMIN.RDS_FILE_UTIL.LISTDIR('DATA_PUMP_DIR'));
-
-SELECT text FROM TABLE(RDSADMIN.RDS_FILE_UTIL.READ_TEXT_FILE('DATA_PUMP_DIR','MY_EXPORT.LOG'));
-
-
-
-BEGIN
-  rdsadmin.rdsadmin_util.download_to_s3(
-    p_directory_name => 'DATA_PUMP_DIR',
-    p_s3_bucket      => 'your-s3-bucket-name',         -- Change this to your bucket
-    p_s3_prefix      => 'oracle_exports/',             -- Optional "folder" path inside bucket
-    p_file_name      => 'my_export.dmp'                 -- The dump file name you want to upload
-  );
-END;
-/
-
-
-
-BEGIN
-  DBMS_CLOUD.CREATE_CREDENTIAL(
-    credential_name => 'MY_S3_CRED',
-    username        => 'YOUR_AWS_ACCESS_KEY_ID',
-    password        => 'YOUR_AWS_SECRET_ACCESS_KEY'
-  );
-END;
-/
-
-
-BEGIN
-  DBMS_CLOUD.PUT_OBJECT(
-    credential_name => 'MY_S3_CRED',
-    object_uri      => 'https://s3.amazonaws.com/your-s3-bucket-name/oracle_exports/my_export.dmp',
-    directory_name  => 'DATA_PUMP_DIR',
-    file_name       => 'my_export.dmp'
-  );
-END;
-/
-
-"s3:PutObject",
-"s3:GetObject",
-"s3:DeleteObject"
-
-
-
-export ORACLE_HOME=/opt/oracle/instantclient
-export PATH=$ORACLE_HOME:$PATH
-export LD_LIBRARY_PATH=$ORACLE_HOME
-
-
-expdp DEVDB_USER/PASSWORD@//source-rds-endpoint:1521/ORCL \
-dumpfile=/data/oracle_dumps/my_export_%U.dmp \
-logfile=/data/oracle_dumps/my_export.log \
-full=y \
-parallel=4
-
-
-
-
-SELECT table_schema, table_name
-FROM information_schema.tables
-WHERE table_schema = 'sde'
-  AND table_name = 'gdb_release'
-  AND table_catalog = 'geogajh';
-
-
-
-DECLARE @name NVARCHAR(256);      -- database name
-DECLARE @path NVARCHAR(512);      -- backup path
-DECLARE @fileName NVARCHAR(512);  -- full .bak path
-DECLARE @sql NVARCHAR(MAX);       -- dynamic SQL
-
--- Set your backup directory path (make sure this exists on the SQL Server host)
-SET @path = 'C:\Backups\';
-
--- Cursor to loop through all user databases (exclude system DBs)
-DECLARE db_cursor CURSOR FOR
-SELECT name 
-FROM sys.databases 
-WHERE name NOT IN ('master', 'model', 'msdb', 'tempdb');
-
-OPEN db_cursor;
-FETCH NEXT FROM db_cursor INTO @name;
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-    SET @fileName = @path + @name + '.bak';
-
-    SET @sql = '
-    BACKUP DATABASE [' + @name + ']
-    TO DISK = N''' + @fileName + '''
-    WITH FORMAT,
-         INIT,
-         NAME = N''Full Backup of ' + @name + ''',
-         COMPRESSION;
-    ';
-    
-    PRINT 'Backing up: ' + @name;
-    EXEC sp_executesql @sql;
-
-    FETCH NEXT FROM db_cursor INTO @name;
-END
-
-CLOSE db_cursor;
-DEALLOCATE db_cursor;
-
-
-
-ALTER DATABASE CART SET RECOVERY SIMPLE;
-DBCC SHRINKFILE (
-    (SELECT name FROM sys.master_files WHERE database_id = DB_ID('CART') AND type_desc = 'LOG'),
-    1
-);
-
-
-BACKUP DATABASE [CART]
-TO DISK = 'C:\Backups\CART.bak'
-WITH FORMAT, INIT, NAME = 'Full Backup of CART', COMPRESSION;
-
-
-SELECT 
-    database_name,
-    backup_start_date,
-    backup_finish_date,
-    type AS BackupType
-FROM msdb.dbo.backupset
-WHERE backup_start_date >= CAST(GETDATE() AS DATE)
-  AND type = 'D'  -- D = Full backup
-ORDER BY backup_start_date DESC;
-
-
-
-
-
-SELECT 
-    'EXEC master.dbo.sp_addlinkedserver 
-        @server = N''' + name + ''', 
-        @srvproduct = N''' + ISNULL(srvproduct, '') + ''', 
-        @provider = N''' + ISNULL(provider, '') + ''', 
-        @datasrc = N''' + ISNULL(data_source, '') + ''';'
-FROM sys.servers
-WHERE is_linked = 1;
-
-
-SELECT 
-    'EXEC master.dbo.sp_addlinkedsrvlogin 
-        @rmtsrvname = N''' + s.name + ''', 
-        @useself = ''' + CASE l.uses_self WHEN 1 THEN 'TRUE' ELSE 'FALSE' END + ''', 
-        @locallogin = ' + 
-            CASE 
-                WHEN l.local_principal_id IS NULL THEN 'NULL' 
-                ELSE 'N''' + p.name + '''' 
-            END + ', 
-        @rmtuser = N''' + ISNULL(l.remote_name, '') + ''', 
-        @rmtpassword = N''' + ISNULL(l.remote_password, '') + ''';'
-FROM sys.linked_logins l
-JOIN sys.servers s ON l.server_id = s.server_id
-LEFT JOIN sys.server_principals p ON l.local_principal_id = p.principal_id;
-
-
-
--- Use this script for each login
--- First, generate for all SQL logins
-SELECT 'CREATE LOGIN [' + sp.name + '] WITH PASSWORD = 0x' + 
-       CONVERT(VARCHAR(MAX), sl.password_hash, 2) + ' HASHED, CHECK_POLICY = OFF, DEFAULT_DATABASE = [' + sp.default_database_name + '];'
-FROM sys.sql_logins AS sl
-JOIN sys.server_principals AS sp ON sl.principal_id = sp.principal_id
-WHERE sp.name NOT LIKE '##%';  -- exclude system-generated
-
-
-
-
--- Replace this with your own backup directory
-DECLARE @BackupDir NVARCHAR(255) = N'D:\SQLBackups\';
-
--- Table of databases and their corresponding .bak files
-DECLARE @Restores TABLE (
-    DatabaseName NVARCHAR(128),
-    BackupFile NVARCHAR(255)
-);
-
--- Add your databases and .bak files here
-INSERT INTO @Restores (DatabaseName, BackupFile)
-VALUES 
-    ('Database1', 'Database1.bak'),
-    ('Database2', 'Database2.bak'),
-    ('Database3', 'Database3.bak');
-    -- Add more as needed
-
-DECLARE @DBName NVARCHAR(128), @BackupFile NVARCHAR(255), @SQL NVARCHAR(MAX);
-
-DECLARE restore_cursor CURSOR FOR
-SELECT DatabaseName, BackupFile FROM @Restores;
-
-OPEN restore_cursor;
-FETCH NEXT FROM restore_cursor INTO @DBName, @BackupFile;
-
-WHILE @@FETCH_STATUS = 0
-BEGIN
-    PRINT 'Restoring: ' + @DBName;
-
-    SET @SQL = '
-    RESTORE DATABASE [' + @DBName + ']
-    FROM DISK = N''' + @BackupDir + @BackupFile + '''
-    WITH 
-        FILE = 1,
-        MOVE ''' + @DBName + ''' TO ''D:\SQLData\' + @DBName + '.mdf'',
-        MOVE ''' + @DBName + '_log'' TO ''D:\SQLLogs\' + @DBName + '_log.ldf'',
-        REPLACE,
-        STATS = 5;
-    ';
-    
-    PRINT @SQL;
-    EXEC sp_executesql @SQL;
-
-    FETCH NEXT FROM restore_cursor INTO @DBName, @BackupFile;
-END
-
-CLOSE restore_cursor;
-DEALLOCATE restore_cursor;
-
-
-
-RESTORE FILELISTONLY 
-FROM DISK = N'D:\SQLBackups\Database1.bak';
-
-
-
-SELECT pg_get_functiondef(p.oid)
-FROM pg_proc p
-JOIN pg_namespace n ON p.pronamespace = n.oid
-WHERE p.proname = 'abc_crop'
-  AND n.nspname = 'car_dm';
-
-
-
-
-
-SELECT
-    n.nspname AS schema_name,
-    p.proname AS function_name,
-    pg_catalog.pg_get_function_identity_arguments(p.oid) AS arguments
-FROM pg_proc p
-JOIN pg_namespace n ON p.pronamespace = n.oid
-WHERE n.nspname = 'car_dm'
-  AND p.proname = 'abc_crop';
-
-
-
-
-SELECT
-    'GRANT USAGE ON SCHEMA "' || n.nspname || '" TO "' || r.rolname || '";' AS grant_stmt
-FROM
-    pg_namespace n
-JOIN
-    pg_roles r
-ON
-    n.nspowner <> r.oid
-WHERE
-    n.nspname NOT LIKE 'pg_%'
-    AND n.nspname <> 'information_schema'
-    AND has_schema_privilege(r.rolname, n.nspname, 'USAGE');
-
-
-SELECT
-    'GRANT ' || privilege_type || ' ON "' || table_schema || '"."' || table_name || '" TO "' || grantee || '";' AS grant_stmt
-FROM
-    information_schema.role_table_grants
-WHERE
-    grantee NOT IN ('postgres', 'rdsadmin');
-
-
-
-SELECT
-    'GRANT ' || privilege_type || ' ON TABLE "' || table_schema || '"."' || table_name || '" TO "' || grantee || '";'
-FROM information_schema.role_table_grants
-WHERE grantee NOT IN ('postgres', 'rdsadmin');
-
-
-
-
-
-
-
-SELECT
-  'CREATE ROLE "'||r.rolname||'"'||
-  CASE WHEN r.rolcanlogin   THEN ' LOGIN'        ELSE ' NOLOGIN'        END||
-  CASE WHEN r.rolcreatedb   THEN ' CREATEDB'     ELSE ' NOCREATEDB'     END||
-  CASE WHEN r.rolcreaterole THEN ' CREATEROLE'   ELSE ' NOCREATEROLE'   END||
-  CASE WHEN r.rolreplication THEN ' REPLICATION' ELSE '' END||
-  CASE WHEN r.rolbypassrls  THEN ' BYPASSRLS'    ELSE '' END||
-  CASE WHEN r.rolconnlimit <> -1 THEN ' CONNECTION LIMIT '||r.rolconnlimit ELSE '' END
-  ||';' AS ddl
-FROM pg_roles r
-WHERE r.rolname !~ '^(pg_|rds_)';
-
-
-SELECT
-  'GRANT '||quote_ident(pg_get_userbyid(m.roleid))||' TO '||
-  quote_ident(pg_get_userbyid(m.member))||
-  CASE WHEN m.admin_option THEN ' WITH ADMIN OPTION' ELSE '' END||';' AS ddl
-FROM pg_auth_members m
-JOIN pg_roles r1 ON r1.oid = m.roleid
-JOIN pg_roles r2 ON r2.oid = m.member
-WHERE r1.rolname !~ '^(pg_|rds_)' AND r2.rolname !~ '^(pg_|rds_)';
-
-
--- One GRANT per privilege per role per database
-WITH db_acl AS (
-  SELECT d.datname,
-         (aclexplode(d.datacl)).*  -- grantee, grantor, privs, grantable
-  FROM pg_database d
-  WHERE d.datistemplate = false
-)
-SELECT 'GRANT '||p.privilege_type||' ON DATABASE '||quote_ident(datname)||' TO '||
-       COALESCE(quote_ident(grantee::regrole::text),'PUBLIC')||
-       CASE WHEN is_grantable THEN ' WITH GRANT OPTION' ELSE '' END||';' AS ddl
-FROM (
-  SELECT datname, grantee, privilege_type,
-         (grant_options LIKE '%'+privilege_type+'%') AS is_grantable
-  FROM (
-    SELECT datname, grantee,
-           unnest(privileges) AS privilege_type,
-           array_to_string(grant_options, ',') AS grant_options
-    FROM (
-      SELECT datname, grantee,
-             (privs).privileges   AS privileges,
-             (privs).grant_options AS grant_options
-      FROM (
-        SELECT datname, grantee,
-               (aclexplode(datacl)).privs AS privs
-        FROM pg_database
-        WHERE datistemplate = false
-      ) x
-    ) y
-  ) z
-) p
-ORDER BY datname;
-
-
-SELECT
-  'GRANT '||privilege_type||' ON SCHEMA '||
-  quote_ident(schemaname)||' TO '||quote_ident(grantee)||';' AS ddl
-FROM information_schema.schema_privileges
-WHERE schemaname NOT IN ('pg_catalog','information_schema');
-
-
-
-
-
-
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN
-    SELECT rolname
-    FROM pg_roles
-    WHERE rolname <> current_user
-      AND rolname !~ '^(pg_|rds_)'              -- skip system / AWS-managed
-      AND rolname NOT IN ('postgres')           -- extra safety if present
-  LOOP
-    BEGIN
-      EXECUTE format('ALTER ROLE %I WITH LOGIN', r.rolname);
-      RAISE NOTICE 'Set LOGIN on role %', r.rolname;
-    EXCEPTION
-      WHEN insufficient_privilege
-        THEN RAISE NOTICE 'Skipping % (insufficient privilege): %', r.rolname, SQLERRM;
-      WHEN feature_not_supported
-        THEN RAISE NOTICE 'Skipping % (feature not supported): %', r.rolname, SQLERRM;
-      WHEN OTHERS
-        THEN RAISE NOTICE 'Skipping % due to: %', r.rolname, SQLERRM;
-    END;
-  END LOOP;
-END$$;
-
-
-
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN
-    SELECT rolname
-    FROM pg_roles
-    WHERE rolname <> current_user
-      AND rolname !~ '^(pg_|rds_)'              -- skip system / AWS-managed
-      AND rolname NOT IN ('postgres')           -- extra safety if present
-  LOOP
-    BEGIN
-      EXECUTE format('ALTER ROLE %I WITH LOGIN CREATEDB', r.rolname);
-      RAISE NOTICE 'Set LOGIN and CREATEDB on role %', r.rolname;
-    EXCEPTION
-      WHEN insufficient_privilege
-        THEN RAISE NOTICE 'Skipping % (insufficient privilege): %', r.rolname, SQLERRM;
-      WHEN feature_not_supported
-        THEN RAISE NOTICE 'Skipping % (feature not supported): %', r.rolname, SQLERRM;
-      WHEN OTHERS
-        THEN RAISE NOTICE 'Skipping % due to: %', r.rolname, SQLERRM;
-    END;
-  END LOOP;
-END$$;
-
-
-
-
-
--- Run in SOURCE DB -> copy output -> run in TARGET DB
-WITH roles AS (
-  SELECT rolname
-  FROM pg_roles
-  WHERE rolname !~ '^(pg_|rds_)'
-),
-schemas AS (
-  SELECT nspname
-  FROM pg_namespace
-  WHERE nspname NOT IN ('pg_catalog','information_schema')
-    AND nspname NOT LIKE 'pg_toast%'
-)
-SELECT format('GRANT USAGE ON SCHEMA %I TO %I;', s.nspname, r.rolname) AS ddl
-FROM roles r
-CROSS JOIN schemas s
-WHERE has_schema_privilege(r.rolname, s.nspname, 'USAGE')
-ORDER BY s.nspname, r.rolname;
-
-
-
-WITH roles AS (
-  SELECT rolname
-  FROM pg_roles
-  WHERE rolname !~ '^(pg_|rds_)'
-),
-schemas AS (
-  SELECT nspname
-  FROM pg_namespace
-  WHERE nspname NOT IN ('pg_catalog','information_schema')
-    AND nspname NOT LIKE 'pg_toast%'
-)
-SELECT format('GRANT CREATE ON SCHEMA %I TO %I;', s.nspname, r.rolname) AS ddl
-FROM roles r
-CROSS JOIN schemas s
-WHERE has_schema_privilege(r.rolname, s.nspname, 'CREATE')
-ORDER BY s.nspname, r.rolname;
-
-
-
-
-
--- SOURCE DB -> copy output -> run on TARGET DB
-WITH roles AS (
-  SELECT rolname
-  FROM pg_roles
-  WHERE rolname !~ '^(pg_|rds_)'
-),
-objs AS (
-  SELECT n.nspname AS schemaname, c.relname AS objname
-  FROM pg_class c
-  JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE c.relkind IN ('r','v','m','f')                       -- table, view, matview, foreign table
-    AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT format(
-         'GRANT %s ON %I.%I TO %I;',
-         v.priv, o.schemaname, o.objname, r.rolname
-       ) AS ddl
-FROM roles r
-CROSS JOIN objs o
-CROSS JOIN LATERAL (VALUES
-  ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRIGGER'), ('REFERENCES')
-) AS v(priv)
-WHERE has_table_privilege(r.rolname, format('%I.%I', o.schemaname, o.objname), v.priv)
-ORDER BY o.schemaname, o.objname, r.rolname, v.priv;
-
-
-
-
-
-#schemalevelpriviliges
-
-SELECT
-    'GRANT CREATE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident(u.usename) || ';' AS grant_create_stmt
-FROM pg_user u
-CROSS JOIN pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-  AND has_schema_privilege(u.usename, n.nspname, 'CREATE')
-ORDER BY u.usename, n.nspname;
-
-
-
-
-#UsageonSchema:
-
-SELECT
-    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident(u.usename) || ';' AS grant_statement
-FROM pg_user u
-CROSS JOIN pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-  -- only generate statements if user does NOT already have USAGE
-  AND NOT has_schema_privilege(u.usename, n.nspname, 'USAGE')
-ORDER BY u.usename, n.nspname;
-
-
-#revokeschema
-SELECT
-    'REVOKE ALL PRIVILEGES ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' FROM ' || quote_ident(u.usename) || ';' AS revoke_statement
-FROM pg_user u
-CROSS JOIN pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY u.usename, n.nspname;
-
-
-#checking
-SELECT
-    u.usename  AS username,
-    n.nspname  AS schema_name,
-    has_schema_privilege(u.usename, n.nspname, 'USAGE')  AS has_usage_privilege,
-    has_schema_privilege(u.usename, n.nspname, 'CREATE') AS has_create_privilege
-FROM pg_user u
-CROSS JOIN (
-    SELECT nspname
-    FROM pg_namespace
-    WHERE nspowner > 1  -- filter out system schemas
-      AND nspname NOT IN ('pg_catalog','information_schema')
-      AND nspname NOT LIKE 'pg_toast%'
-      AND nspname NOT LIKE 'pg_temp_%'
-) n
-ORDER BY u.usename, n.nspname;
 
 
 
