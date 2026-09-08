@@ -122,3 +122,40 @@ LEFT JOIN margin_lookup mg
     AND b.fy_cd = mg.fy_cd;
 
 
+-- ============================================================================
+-- VIEW: gold_finance.v_pl_fs_indrct_mgmt_pivoted
+-- Reporting-layer pivot: ACT/TGT rows from v_pl_fs_indrct_mgmt collapsed back
+-- into ONE row per (proj_id, fy_cd, acct_id), with _act / _tgt columns per
+-- metric. Built for consumption by dashboards/reports only — not the
+-- source of truth (that remains the long view).
+-- ============================================================================
+
+CREATE OR REPLACE VIEW gold_finance.v_pl_fs_indrct_mgmt_pivoted AS
+
+SELECT
+    proj_id,
+    fy_cd,
+    acct_id,
+    -- add any other grain/descriptive columns here (dept, cost_center, etc.)
+
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN fully_burdened_cost END) AS fully_burdened_cost_act,
+    MAX(CASE WHEN scenario_cd = 'TGT' THEN fully_burdened_cost END) AS fully_burdened_cost_tgt,
+
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN operating_income END) AS operating_income_act,
+    MAX(CASE WHEN scenario_cd = 'TGT' THEN operating_income END) AS operating_income_tgt,
+
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN mgmt_proj_cost END) AS mgmt_proj_cost_act,
+    MAX(CASE WHEN scenario_cd = 'TGT' THEN mgmt_proj_cost END) AS mgmt_proj_cost_tgt,
+
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN mgmt_operating_income_grossup END) AS mgmt_operating_income_grossup_act,
+    MAX(CASE WHEN scenario_cd = 'TGT' THEN mgmt_operating_income_grossup END) AS mgmt_operating_income_grossup_tgt,
+
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN mgmt_operating_income END) AS mgmt_operating_income_act,
+    MAX(CASE WHEN scenario_cd = 'TGT' THEN mgmt_operating_income END) AS mgmt_operating_income_tgt,
+
+    -- Bonus: variance, since act and target now sit on the same row
+    MAX(CASE WHEN scenario_cd = 'ACT' THEN mgmt_operating_income END)
+        - MAX(CASE WHEN scenario_cd = 'TGT' THEN mgmt_operating_income END) AS mgmt_operating_income_variance
+
+FROM gold_finance.v_pl_fs_indrct_mgmt
+GROUP BY proj_id, fy_cd, acct_id;
