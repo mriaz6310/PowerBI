@@ -44,3 +44,81 @@ WHERE grantee NOT IN ('rdsadmin', 'postgres');
 
 
 
+-- ============================================================================
+-- VIEW: gold_finance.v_pl_fs_indrct_mgmt
+-- Unpivots amount_act / amount_tgt into scenario rows, then applies the same
+-- margin-based management calc to whichever amount belongs to each row.
+-- No new columns added to the base table.
+-- ============================================================================
+
+CREATE OR REPLACE VIEW gold_finance.v_pl_fs_indrct_mgmt AS
+
+WITH base_amounts AS (
+    -- Actuals
+    SELECT
+        f.*,
+        'ACT' AS scenario_cd,
+        f.amount_act AS amount
+    FROM gold_finance.f_pl_fs_indrct f
+
+    UNION ALL
+
+    -- Targets
+    SELECT
+        f.*,
+        'TGT' AS scenario_cd,
+        f.amount_tgt AS amount
+    FROM gold_finance.f_pl_fs_indrct f
+),
+
+margin_lookup AS (
+    SELECT proj_id, fy_cd, margin_percent
+    FROM (
+        SELECT
+            f.proj_id,
+            f.fy_cd,
+            m.margin_percent,
+            ROW_NUMBER() OVER (
+                PARTITION BY f.proj_id, f.fy_cd
+                ORDER BY ref.product_cd, m.margin_percent DESC
+            ) AS rn
+        FROM (
+            SELECT DISTINCT proj_id, fy_cd FROM gold_finance.f_pl_fs_indrct
+        ) f
+        INNER JOIN silver_finance.ref_iwo_product_lookup ref
+            ON f.proj_id = ref.proj_id
+        INNER JOIN silver_tm1.ref_product_margin_rates m
+            ON ref.product_cd = m.product_cd
+            AND f.fy_cd = m.fy_cd
+    )
+    WHERE rn = 1
+)
+
+SELECT
+    b.*,
+    COALESCE(mg.margin_percent, 0) AS margin_percent,
+
+    -- Fully Burdened Cost
+    b.amount AS fully_burdened_cost,
+
+    -- Operating Income
+    b.amount AS operating_income,
+
+    -- Management Project Cost
+    CASE WHEN b.acct_id = '580-040-011' THEN b.amount ELSE 0 END AS mgmt_proj_cost,
+
+    -- Management Operating Income Grossup
+    (CASE WHEN b.acct_id = '580-040-011' THEN b.amount ELSE 0 END)
+        * COALESCE(mg.margin_percent, 0) AS mgmt_operating_income_grossup,
+
+    -- Management Operating Income
+    b.amount
+        + ((CASE WHEN b.acct_id = '580-040-011' THEN b.amount ELSE 0 END)
+           * COALESCE(mg.margin_percent, 0)) AS mgmt_operating_income
+
+FROM base_amounts b
+LEFT JOIN margin_lookup mg
+    ON b.proj_id = mg.proj_id
+    AND b.fy_cd = mg.fy_cd;
+
+
