@@ -1,266 +1,181 @@
--- This will output DROP + CREATE SERVER and CREATE USER MAPPING commands
-WITH srv AS (
-  SELECT
-    s.oid,
-    s.srvname,
-    w.fdwname,
-    CASE
-      WHEN s.srvoptions IS NULL THEN ''
-      ELSE ' OPTIONS (' ||
-           array_to_string(
-             ARRAY(
-               SELECT quote_ident(split_part(o,'=',1)) || ' ' ||
-                      quote_literal(substring(o from position('=' in o)+1))
-               FROM unnest(s.srvoptions) AS o
-             ), ', '
-           ) || ')'
-    END AS optstr
-  FROM pg_foreign_server s
-  JOIN pg_foreign_data_wrapper w ON w.oid = s.srvfdw
-)
-SELECT
-  'DROP SERVER IF EXISTS ' || quote_ident(srvname) || ' CASCADE;'
-FROM srv
-UNION ALL
-SELECT
-  'CREATE SERVER ' || quote_ident(srvname) ||
-  ' FOREIGN DATA WRAPPER ' || quote_ident(fdwname) || optstr || ';'
-FROM srv
-UNION ALL
-SELECT
-  'CREATE USER MAPPING FOR ' ||
-  CASE WHEN m.umuser = 0 THEN 'PUBLIC' ELSE quote_ident(r.rolname) END ||
-  ' SERVER ' || quote_ident(s.srvname) ||
-  CASE
-    WHEN m.umoptions IS NULL THEN ''
-    ELSE ' OPTIONS (' ||
-         array_to_string(
-           ARRAY(
-             SELECT quote_ident(split_part(o,'=',1)) || ' ' ||
-                    quote_literal(substring(o from position('=' in o)+1))
-             FROM unnest(m.umoptions) AS o
-           ), ', '
-         ) || ')'
-  END || ';'
-FROM pg_user_mappings m
-JOIN pg_foreign_server s ON s.oid = m.srvid
-LEFT JOIN pg_roles r ON r.oid = m.umuser
-ORDER BY 1;
 
+WITH
 
+cte_f_actual  AS
+    (
+        Select 
+            'f_actual' AS tabl_name,
+            fy_cd,
+            pd_no,
+            rate_type,
+            sum(gross_revenue)   AS gross_revenue, 
+            sum(direct_cost)  AS direct_cost, 
+            sum(indirect_cost)  AS indirect_cost, 
+            sum(fully_burdened_cost)  AS fully_burdened_cost, 
+            sum(operating_income)  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From silver_finance.f_actual a
+        where proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no,
+            rate_type
+    ),
 
+cte_f_pl  AS
+    (
+        Select 
+            'f_pl' AS tabl_name,
+            fy_cd,
+            pd_no,
+            rate_type,
+            sum(gross_revenue)   AS gross_revenue, 
+            sum(direct_cost)  AS direct_cost, 
+            sum(indirect_cost)  AS indirect_cost, 
+            sum(fully_burdened_cost)  AS fully_burdened_cost, 
+            sum(operating_income)  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl
+        where  version_id = 'Actuals' and proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no,
+            rate_type
+    ),
 
-USE NPA;
-GO
-SELECT 
-    name AS logical_name, 
-    physical_name
-FROM sys.database_files
-WHERE type_desc = 'ROWS'   -- data files (includes .mdf + .ndf)
-  AND RIGHT(physical_name,4) = '.ndf'
-ORDER BY file_id;
+cte_f_pl_sg  AS
+    (
+        Select 
+            'f_pl_sg' AS tabl_name,
+            fy_cd,
+            pd_no,
+            rate_type,
+            sum(gross_revenue)   AS gross_revenue, 
+            sum(direct_cost)  AS direct_cost, 
+            sum(indirect_cost)  AS indirect_cost, 
+            sum(fully_burdened_cost)  AS fully_burdened_cost, 
+            sum(operating_income)  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl_sg
+        where  version_id = 'Actuals' and proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no,
+            rate_type
+    ),
 
+cte_f_pl_fs_indrct_act  AS
+    (
+        Select 
+            'f_pl_fs_indrct' AS tabl_name,
+            fy_cd,
+            pd_no,
+            'Actual' as rate_type,
+            sum(case when fs_major_desc = 'Gross Revenue' then amount_act * -1 else 0 end) as gross_revenue, 
+            sum(case when fs_major_desc = 'Total Direct Cost' then amount_act else 0 end) direct_cost, 
+            sum(case when fs_major_desc = 'Total Indirect Cost' then amount_act else 0 end) AS indirect_cost, 
+            sum(case when fs_major_desc in ('Total Indirect Cost', 'Total Direct Cost') then amount_act else 0 end) AS fully_burdened_cost, 
+            sum(case when fs_major_desc <> 'Sales' then amount_act else 0 end)*-1  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl_fs_indrct
+        where  proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no
+    ),
 
-USE NPA;
-GO
-DECLARE @OldPath NVARCHAR(260) = N'E:\SQLData\NPA';   -- current folder
-DECLARE @NewPath NVARCHAR(260) = N'G:\SQLData\NPA';   -- new folder
+cte_f_pl_fs_indrct_tgt  AS
+    (
+        Select 
+            'f_pl_fs_indrct' AS tabl_name,
+            fy_cd,
+            pd_no,
+            'Target' as rate_type,
+            sum(case when fs_major_desc = 'Gross Revenue' then amount_tgt * -1 else 0 end) as gross_revenue, 
+            sum(case when fs_major_desc = 'Total Direct Cost' then amount_tgt else 0 end) direct_cost, 
+            sum(case when fs_major_desc = 'Total Indirect Cost' then amount_tgt else 0 end) AS indirect_cost, 
+            sum(case when fs_major_desc in ('Total Indirect Cost', 'Total Direct Cost') then amount_tgt else 0 end) AS fully_burdened_cost, 
+            sum(case when fs_major_desc <> 'Sales' then amount_tgt else 0 end)*-1  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl_fs_indrct
+        where proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no
+    ),
 
-SELECT 
-    'ALTER DATABASE NPA MODIFY FILE (NAME = ' + QUOTENAME(df.name,'''')
-    + ', FILENAME = ' + QUOTENAME(REPLACE(df.physical_name, @OldPath, @NewPath),'''') 
-    + ');' AS cmd
-FROM sys.database_files df
-WHERE type_desc = 'ROWS'
-  AND RIGHT(df.physical_name,4) = '.ndf'
-ORDER BY file_id;
+cte_f_pl_fs_indrct_sg_act  AS
+    (
+        Select 
+            'f_pl_fs_indrct_sg' AS tabl_name,
+            fy_cd,
+            pd_no,
+            'Actual' as rate_type,
+            sum(case when fs_major_desc = 'Gross Revenue' then amount_act * -1 else 0 end) as gross_revenue, 
+            sum(case when fs_major_desc = 'Total Direct Cost' then amount_act else 0 end) direct_cost, 
+            sum(case when fs_major_desc = 'Total Indirect Cost' then amount_act else 0 end) AS indirect_cost, 
+            sum(case when fs_major_desc in ('Total Indirect Cost', 'Total Direct Cost') then amount_act else 0 end) AS fully_burdened_cost, 
+            sum(case when fs_major_desc <> 'Sales' then amount_act else 0 end)*-1  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl_fs_indrct_sg
+        where  proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no
+    ),
 
+cte_f_pl_fs_indrct_sg_tgt  AS
+    (
+        Select 
+            'f_pl_fs_indrct_sg' AS tabl_name,
+            fy_cd,
+            pd_no,
+            'Target' as rate_type,
+            sum(case when fs_major_desc = 'Gross Revenue' then amount_tgt * -1 else 0 end) as gross_revenue, 
+            sum(case when fs_major_desc = 'Total Direct Cost' then amount_tgt else 0 end) direct_cost, 
+            sum(case when fs_major_desc = 'Total Indirect Cost' then amount_tgt else 0 end) AS indirect_cost, 
+            sum(case when fs_major_desc in ('Total Indirect Cost', 'Total Direct Cost') then amount_tgt else 0 end) AS fully_burdened_cost, 
+            sum(case when fs_major_desc <> 'Sales' then amount_tgt else 0 end)*-1  AS operating_income,
+            sum(mgmt_proj_cost)  AS mgmt_proj_cost,
+            sum(mgmt_operating_income_grossup)  AS mgmt_operating_income_grossup,
+            sum(mgmt_operating_income) AS mgmt_operating_income
+        From gold_finance.f_pl_fs_indrct_sg
+        where proj_id not in  ('ASM', 'IC Eliminations')
+        Group By 
+            fy_cd,
+            pd_no
+    )
 
+SELECT * FROM 
+    (
+        SELECT * FROM cte_f_actual 
+    UNION ALL
+        SELECT * FROM cte_f_pl
+    UNION ALL
+        SELECT * from cte_f_pl_sg
+    UNION ALL
+        SELECT * from cte_f_pl_fs_indrct_act
+    UNION ALL
+        SELECT * from cte_f_pl_fs_indrct_tgt
+    UNION ALL
+        SELECT * from cte_f_pl_fs_indrct_sg_act
+    UNION ALL
+        SELECT * from cte_f_pl_fs_indrct_sg_tgt
 
+    )
 
-SELECT
-    identity_name AS user_name,
-    namespace_name AS schema_name,
-    relation_name AS object_name,
-    privilege_type AS privilege,
-    identity_type AS user_type
-FROM SVV_RELATION_PRIVILEGES
-WHERE identity_name = 'prof_afm_g'
-  AND namespace_name = 'abcdm'
-  AND relation_name LIKE 'vw%'
-ORDER BY user_name, schema_name, object_name;
-
-
-
-
-object permisisons:
-
--- SOURCE DB -> copy output -> run on TARGET DB
-WITH roles AS (
-  SELECT rolname FROM pg_roles WHERE rolname !~ '^(pg_|rds_)'
-),
-objs AS (
-  SELECT n.nspname AS schemaname, c.relname AS objname
-  FROM pg_class c
-  JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE c.relkind IN ('r','v','m','f')                       -- table, view, matview, foreign table
-    AND n.nspname NOT IN ('pg_catalog','information_schema')
-    AND n.nspname NOT LIKE 'pg_toast%'
-)
-SELECT format('GRANT %s ON %I.%I TO %I;', p.priv, o.schemaname, o.objname, r.rolname) AS ddl
-FROM roles r
-CROSS JOIN objs o
-CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRIGGER'),('REFERENCES')) AS p(priv)
-WHERE has_table_privilege(r.rolname, format('%I.%I', o.schemaname, o.objname), p.priv)
-ORDER BY o.schemaname, o.objname, r.rolname, p.priv;
-
-
-
-
-
-DO $$
-DECLARE
-    sch text;
-    usr text := 'rdprod';  -- replace with your target user
-BEGIN
-    -- Loop through all non-system schemas
-    FOR sch IN
-        SELECT schema_name
-        FROM information_schema.schemata
-        WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
-    LOOP
-        -- Grant schema access
-        EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I;', sch, usr);
-
-        -- Grant select on existing tables
-        EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA %I TO %I;', sch, usr);
-
-        -- Make sure future tables are also covered
-        EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA %I GRANT SELECT ON TABLES TO %I;', sch, usr);
-    END LOOP;
-END$$;
-
-
-
-
-#test1usageschema
-SELECT
-    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident(u.usename) || ';' AS grant_usage_stmt
-FROM pg_user u
-CROSS JOIN (
-    SELECT nspname
-    FROM pg_namespace
-    WHERE nspowner > 1  -- filter out system schemas
-      AND nspname NOT IN ('pg_catalog','information_schema')
-      AND nspname NOT LIKE 'pg_toast%'
-      AND nspname NOT LIKE 'pg_temp_%'
-) n
-WHERE has_schema_privilege(u.usename, n.nspname, 'USAGE')
-ORDER BY u.usename, n.nspname;
-
-
-#testcreateschema
-
-SELECT
-    'GRANT CREATE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident(u.usename) || ';' AS grant_create_stmt
-FROM pg_user u
-CROSS JOIN (
-    SELECT nspname
-    FROM pg_namespace
-    WHERE nspowner > 1  -- filter out system schemas
-      AND nspname NOT IN ('pg_catalog','information_schema')
-      AND nspname NOT LIKE 'pg_toast%'
-      AND nspname NOT LIKE 'pg_temp_%'
-) n
-WHERE has_schema_privilege(u.usename, n.nspname, 'CREATE')
-ORDER BY u.usename, n.nspname;
-
-
-#singleuser:
-SELECT
-    n.nspname  AS schema_name,
-    has_schema_privilege('adhname', n.nspname, 'USAGE')  AS has_usage_privilege,
-    has_schema_privilege('adhname', n.nspname, 'CREATE') AS has_create_privilege
-FROM pg_namespace n
-WHERE n.nspowner > 1  -- filter out system schemas
-  AND n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY n.nspname;
-
-
-#revokefora single user
-SELECT
-    'REVOKE USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' FROM ' || quote_ident('adhname') || ';' AS revoke_usage_stmt
-FROM pg_namespace n
-WHERE n.nspowner > 1
-  AND n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY n.nspname;
-
-
-
-
-#revoke all for a single user
-
-SELECT
-    'REVOKE ALL PRIVILEGES ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' FROM ' || quote_ident('adhname') || ';' AS revoke_statement
-FROM pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY n.nspname;
-
-
-
-
-#create for a sinhle user
-SELECT
-    'GRANT CREATE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident('adhname') || ';' AS grant_stmt
-FROM pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY n.nspname;
-
-
-#usage for a single user
-SELECT
-    'GRANT USAGE ON SCHEMA ' || quote_ident(n.nspname) ||
-    ' TO ' || quote_ident('adhname') || ';' AS grant_stmt
-FROM pg_namespace n
-WHERE n.nspname NOT IN ('pg_catalog','information_schema')
-  AND n.nspname NOT LIKE 'pg_toast%'
-  AND n.nspname NOT LIKE 'pg_temp_%'
-ORDER BY n.nspname;
-
-
-# Clear all cached tables
-spark.catalog.clearCache()
-
-# Drop temp views if you use them
-for v in spark.catalog.listTables():
-    if v.isTemporary:
-        spark.catalog.dropTempView(v.name)
-
-
-for df in [df1, df2]:  # replace with real dfs
-    try:
-        df.unpersist()
-    except:
-        pass
-
-
-from pyspark.sql.functions import col
-
-fact_resources_fixed = (
-    fact_resources
-    .withColumn("TS_DT", col("TS_DT").cast("date"))
-)
-
+where fy_cd = 2026
+and pd_no = 11
+ORDER BY rate_type, tabl_name
